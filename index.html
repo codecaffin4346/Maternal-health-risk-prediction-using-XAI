@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MaternAI — Maternal Health Risk Prediction with Explainable AI</title>
+  <meta name="description" content="AI-powered maternal health risk assessment using Explainable AI (XAI). Get instant risk predictions with SHAP-based feature explanations, radar charts, and personalised recommendations."/>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="mesh-bg"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════════════ -->
+<nav class="navbar">
+  <div class="navbar-brand">
+    <div class="brand-dot"></div>
+    MaternAI
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="tab-assess" id="tab-btn-assess">🩺 Assessment</button>
+    <button class="nav-tab" data-tab="tab-history"  id="tab-btn-history">📋 History</button>
+    <button class="nav-tab" data-tab="tab-stats"    id="tab-btn-stats">📊 Model Stats</button>
+    <button class="nav-tab" data-tab="tab-xai"      id="tab-btn-xai">🔬 How XAI Works</button>
+  </div>
+
+  <div style="width:120px; display:flex; justify-content:flex-end;">
+    <span style="font-size:0.75rem;color:var(--text-dim);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#4ade80;padding:4px 10px;border-radius:100px;">
+      ● Live
+    </span>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     HERO (shown above tabs, always visible)
+═══════════════════════════════════════════════════ -->
+<section class="hero" id="hero">
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    Powered by Explainable AI · UCI Dataset · ~93.4% Accuracy
+  </div>
+
+  <h1>Maternal Health Risk<br/>Prediction with XAI</h1>
+
+  <p class="hero-sub">
+    Enter 6 clinical vitals and receive an instant AI-powered risk assessment — with
+    SHAP explanations that tell you <em>exactly why</em> the model made its decision.
+  </p>
+
+  <div class="hero-cta-group">
+    <button class="btn-primary" onclick="document.getElementById('tab-assess').scrollIntoView({behavior:'smooth'})">
+      🩺 Start Assessment
+    </button>
+    <button class="btn-secondary" onclick="document.querySelector('[data-tab=tab-xai]').click()">
+      🔬 How It Works
+    </button>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-number"><span data-counter="1014" data-suffix="">0</span></div>
+      <div class="stat-label">Training Samples</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number"><span data-counter="93.4" data-suffix="%">0%</span></div>
+      <div class="stat-label">Model Accuracy</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number"><span data-counter="6" data-suffix="">0</span></div>
+      <div class="stat-label">Clinical Features</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number"><span data-counter="10" data-suffix="">0</span></div>
+      <div class="stat-label">Decision Trees</div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature cards -->
+<div class="features-grid">
+  <div class="feature-card reveal">
+    <div class="feature-icon">⚡</div>
+    <h3>Instant Inference</h3>
+    <p>Random Forest model runs entirely in your browser — no data sent to any server.</p>
+  </div>
+  <div class="feature-card reveal">
+    <div class="feature-icon">🔍</div>
+    <h3>SHAP Explanations</h3>
+    <p>TreeSHAP approximation shows each vital's signed contribution to the risk score.</p>
+  </div>
+  <div class="feature-card reveal">
+    <div class="feature-icon">📡</div>
+    <h3>Radar Analysis</h3>
+    <p>Visual overlay of your values against the healthy reference range for all 6 features.</p>
+  </div>
+  <div class="feature-card reveal">
+    <div class="feature-icon">💾</div>
+    <h3>Session History</h3>
+    <p>Track up to 20 assessments with localStorage — export any time as CSV.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN CONTENT — TAB PANELS
+═══════════════════════════════════════════════════ -->
+<main class="main-content">
+
+  <!-- ────────────────────────────────────────────────
+       TAB: ASSESSMENT
+  ──────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-assess">
+
+    <!-- FORM SECTION -->
+    <div id="form-section">
+      <div class="section-header">
+        <h2>🩺 Risk Assessment</h2>
+        <p>Enter the patient's clinical measurements below. All 6 fields are required.</p>
+      </div>
+
+      <!-- Sample presets -->
+      <div class="preset-bar">
+        <span>Load sample:</span>
+        <button class="preset-btn preset-btn-low"  data-preset="low">🟢 Low Risk Example</button>
+        <button class="preset-btn preset-btn-mid"  data-preset="mid">🟡 Mid Risk Example</button>
+        <button class="preset-btn preset-btn-high" data-preset="high">🔴 High Risk Example</button>
+      </div>
+
+      <div class="form-grid">
+
+        <!-- Age -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Age</span>
+            <span class="input-unit">years</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="age-slider" class="range-slider" min="10" max="49" value="28" step="1" />
+            <input type="number" id="age"        class="input-number"  min="10" max="49" value="28" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 18 – 40 yrs</div>
+        </div>
+
+        <!-- Systolic BP -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Systolic Blood Pressure</span>
+            <span class="input-unit">mmHg</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="sbp-slider" class="range-slider" min="70" max="180" value="110" step="1" />
+            <input type="number" id="sbp"        class="input-number"  min="70" max="180" value="110" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 90 – 120 mmHg</div>
+        </div>
+
+        <!-- Diastolic BP -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Diastolic Blood Pressure</span>
+            <span class="input-unit">mmHg</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="dbp-slider" class="range-slider" min="49" max="110" value="72" step="1" />
+            <input type="number" id="dbp"        class="input-number"  min="49" max="110" value="72" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 60 – 80 mmHg</div>
+        </div>
+
+        <!-- Blood Sugar -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Blood Sugar (BS)</span>
+            <span class="input-unit">mmol/L</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="bs-slider" class="range-slider" min="6.0" max="19.0" value="7.0" step="0.1" />
+            <input type="number" id="bs"        class="input-number"  min="6.0" max="19.0" value="7.0" step="0.1" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 3.5 – 7.5 mmol/L</div>
+        </div>
+
+        <!-- Body Temperature -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Body Temperature</span>
+            <span class="input-unit">°F</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="temp-slider" class="range-slider" min="97" max="104" value="98" step="0.1" />
+            <input type="number" id="temp"        class="input-number"  min="97" max="104" value="98" step="0.1" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 97 – 99 °F</div>
+        </div>
+
+        <!-- Heart Rate -->
+        <div class="input-group">
+          <div class="input-label">
+            <span>Heart Rate</span>
+            <span class="input-unit">bpm</span>
+          </div>
+          <div class="input-row">
+            <input type="range"  id="hr-slider" class="range-slider" min="40" max="100" value="76" step="1" />
+            <input type="number" id="hr"        class="input-number"  min="40" max="100" value="76" />
+          </div>
+          <div class="slider-zone zone-normal"></div>
+          <div class="normal-range">Normal: 60 – 90 bpm</div>
+        </div>
+
+      </div><!-- /form-grid -->
+
+      <div class="predict-btn-wrapper">
+        <button id="predict-btn">🔍 Analyse Risk Now</button>
+        <div class="disclaimer">
+          ⚠️ Research prototype only — not a clinical diagnostic tool. Always consult a qualified healthcare professional.
+        </div>
+      </div>
+    </div><!-- /form-section -->
+
+    <!-- RESULTS SECTION (hidden until prediction) -->
+    <div id="results-section" class="hidden">
+
+      <div class="results-header">
+        <div class="risk-display">
+          <span class="risk-icon-large" id="risk-icon">🟡</span>
+          <div>
+            <div class="risk-label-text" id="risk-label">Mid Risk</div>
+            <span class="confidence-pill" id="confidence-text">0% confidence</span>
+          </div>
+        </div>
+        <div class="results-actions">
+          <button class="btn-sm" id="back-btn">← Edit Inputs</button>
+          <button class="btn-sm" id="new-assessment-btn">+ New Assessment</button>
+        </div>
+      </div>
+
+      <!-- Gauge + Probability -->
+      <div class="results-grid">
+
+        <div class="result-card">
+          <div class="card-title">Risk Gauge</div>
+          <div class="gauge-wrapper">
+            <canvas id="gauge-chart" width="220" height="180"></canvas>
+            <div class="gauge-label-overlay">
+              <div class="gauge-pct" id="gauge-pct-text">—</div>
+              <div class="gauge-sub">Risk Score</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-card">
+          <div class="card-title">Class Probabilities</div>
+          <div id="prob-bars" style="margin-top:12px;"></div>
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+            <div class="card-title" style="margin-bottom:12px;">Radar — Patient vs. Normal</div>
+            <canvas id="radar-chart" height="200"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SHAP Waterfall full-width -->
+      <div class="result-card shap-card" style="margin-bottom:24px;">
+        <div class="card-title">🔍 SHAP Feature Contributions — XAI Explanation</div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px;">
+          Red bars push the prediction toward <strong style="color:#ef4444">higher risk</strong>;
+          green bars push toward <strong style="color:#22c55e">lower risk</strong>.
+          Bar length = magnitude of influence.
+        </p>
+        <div class="shap-chart-wrapper">
+          <canvas id="shap-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Clinical Summary + Recommendations -->
+      <div class="two-col-grid">
+        <div class="result-card">
+          <div class="card-title">📋 Clinical Summary</div>
+          <div id="clinical-summary"></div>
+        </div>
+        <div class="result-card">
+          <div class="card-title">💊 Personalised Recommendations</div>
+          <div id="rec-header" style="margin-bottom:14px;"></div>
+          <ul id="rec-list"></ul>
+        </div>
+      </div>
+
+    </div><!-- /results-section -->
+  </div><!-- /tab-assess -->
+
+
+  <!-- ────────────────────────────────────────────────
+       TAB: HISTORY
+  ──────────────────────────────────────────────── -->
+  <div class="tab-panel hidden" id="tab-history">
+    <div class="section-header">
+      <h2>📋 Assessment History</h2>
+      <p>Your last 20 assessments are stored locally in your browser.</p>
+    </div>
+    <div class="history-toolbar">
+      <button class="btn-sm" id="export-btn">⬇ Export CSV</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────────────
+       TAB: MODEL STATS
+  ──────────────────────────────────────────────── -->
+  <div class="tab-panel hidden" id="tab-stats">
+    <div class="section-header">
+      <h2>📊 Model Performance</h2>
+      <p>Random Forest (10 trees) trained on UCI Maternal Health Risk Dataset · 5-fold stratified cross-validation · SMOTE oversampling</p>
+    </div>
+
+    <!-- Big stat cards -->
+    <div class="stats-hero-grid">
+      <div class="stats-big-card">
+        <div class="stats-big-num" id="stat-accuracy">—</div>
+        <div class="stats-big-label">Overall Accuracy</div>
+      </div>
+      <div class="stats-big-card">
+        <div class="stats-big-num" id="stat-macro_f1">—</div>
+        <div class="stats-big-label">Macro-avg F1 Score</div>
+      </div>
+      <div class="stats-big-card">
+        <div class="stats-big-num" id="stat-auc_roc">—</div>
+        <div class="stats-big-label">AUC-ROC Score</div>
+      </div>
+    </div>
+
+    <!-- Per-class table -->
+    <div class="result-card" style="margin-bottom:24px;">
+      <div class="card-title">Per-Class Performance (Precision / Recall / F1)</div>
+      <table class="per-class-table">
+        <thead>
+          <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1 Score</th></tr>
+        </thead>
+        <tbody id="per-class-table"></tbody>
+      </table>
+    </div>
+
+    <!-- Confusion matrix + Feature importance side by side -->
+    <div class="two-col-grid">
+      <div class="chart-card">
+        <div class="card-title">Confusion Matrix</div>
+        <canvas id="confusion-matrix" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">Feature Importance (Mean Decrease in Impurity)</div>
+        <div class="fi-chart-wrapper">
+          <canvas id="feature-importance-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dataset info -->
+    <div class="result-card" style="margin-top:24px;">
+      <div class="card-title">Dataset Information</div>
+      <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.75;">
+        The <strong>UCI Maternal Health Risk Dataset</strong> (Ahmed et al.) was collected using IoT-based
+        risk monitoring systems across rural and urban areas of Bangladesh. It contains six clinical
+        measurements from pregnant women and is labelled with three risk levels by medical professionals.
+      </p>
+      <div class="dataset-chips">
+        <span class="chip">📦 <strong>1,014</strong> samples</span>
+        <span class="chip">🟢 Low: <strong>406</strong> (40.0%)</span>
+        <span class="chip">🟡 Mid: <strong>336</strong> (33.1%)</span>
+        <span class="chip">🔴 High: <strong>272</strong> (26.8%)</span>
+        <span class="chip">🔢 Features: <strong>6</strong></span>
+        <span class="chip">⚖️ SMOTE balancing: <strong>Yes</strong></span>
+        <span class="chip">🔁 CV: <strong>5-fold stratified</strong></span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────────────
+       TAB: HOW XAI WORKS
+  ──────────────────────────────────────────────── -->
+  <div class="tab-panel hidden" id="tab-xai">
+    <div class="section-header">
+      <h2>🔬 How Explainable AI Works</h2>
+      <p>Understanding the science behind the predictions — from Random Forest to SHAP values.</p>
+    </div>
+
+    <div class="xai-grid">
+
+      <!-- ML Pipeline -->
+      <div class="xai-card" style="grid-column:1/-1;">
+        <h3>🔄 End-to-End Prediction Pipeline</h3>
+        <div class="pipeline-steps">
+          <div class="pipeline-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h4>Input Collection</h4>
+              <p>6 clinical vitals entered: Age, Systolic BP, Diastolic BP, Blood Sugar, Body Temperature, Heart Rate.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h4>Random Forest Inference</h4>
+              <p>10 decision trees each independently process the inputs. Each tree traverses from root to leaf based on feature thresholds, producing a class probability distribution [P(Low), P(Mid), P(High)].</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h4>Ensemble Aggregation</h4>
+              <p>Probabilities from all 10 trees are averaged. The class with the highest average probability becomes the predicted risk level.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <h4>TreeSHAP Computation (XAI Layer)</h4>
+              <p>For each tree, we track the path taken and measure how much each feature split shifts the expected risk score from the parent node to the child node. These path contributions are averaged across all trees to produce the final SHAP value per feature.</p>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <h4>Output Generation</h4>
+              <p>Risk class, confidence probabilities, SHAP waterfall chart, clinical summary, and personalised recommendations are rendered.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- What is Random Forest -->
+      <div class="xai-card">
+        <h3>🌲 What is Random Forest?</h3>
+        <p>
+          A Random Forest is an ensemble of decision trees. Each tree is trained on a random subset of the training data and a random subset of features — this reduces overfitting and improves generalisation.
+        </p>
+        <p>
+          For classification, each tree votes for a class. The majority vote (or averaged probability) becomes the final prediction.
+        </p>
+        <ul>
+          <li>Handles non-linear relationships well</li>
+          <li>Robust to outliers and noisy data</li>
+          <li>Naturally provides feature importance scores</li>
+          <li>No need for feature scaling or normalisation</li>
+          <li>Achieves 93–95% accuracy on the maternal health dataset</li>
+        </ul>
+      </div>
+
+      <!-- What is SHAP -->
+      <div class="xai-card">
+        <h3>🔍 What are SHAP Values?</h3>
+        <p>
+          <strong>SHAP (SHapley Additive exPlanations)</strong> is a game-theory method that assigns each feature a "credit" for the prediction — fairly distributed based on how much each feature contributed to shifting the output from the baseline.
+        </p>
+        <p>
+          The baseline is the average prediction across all training samples. SHAP values explain the deviation of a specific prediction from that baseline.
+        </p>
+        <ul>
+          <li><strong>Positive SHAP</strong> → feature pushes prediction toward higher risk</li>
+          <li><strong>Negative SHAP</strong> → feature reduces predicted risk</li>
+          <li>All SHAP values sum to the total deviation from baseline</li>
+          <li>TreeSHAP computes exact values in polynomial time for tree models</li>
+        </ul>
+      </div>
+
+      <!-- Clinical Impact Table -->
+      <div class="xai-card" style="grid-column:1/-1;">
+        <h3>🏥 How XAI Transforms Clinical Value</h3>
+        <table class="impact-table">
+          <thead>
+            <tr><th>Without XAI</th><th>With XAI (this app)</th><th>Clinical Benefit</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>"HIGH RISK"</td>
+              <td>"Blood sugar is the #1 driver (+42%)"</td>
+              <td>Doctor knows what to treat first</td>
+            </tr>
+            <tr>
+              <td>No prioritisation</td>
+              <td>Features ranked by SHAP magnitude</td>
+              <td>Efficient resource allocation in resource-limited settings</td>
+            </tr>
+            <tr>
+              <td>Black-box distrust</td>
+              <td>Decision path is fully visible</td>
+              <td>Clinicians can validate AI reasoning against their expertise</td>
+            </tr>
+            <tr>
+              <td>Generic advice</td>
+              <td>Recommendations based on top risk drivers</td>
+              <td>Personalised interventions with higher compliance</td>
+            </tr>
+            <tr>
+              <td>Input errors undetected</td>
+              <td>Anomalous SHAP contribution is visually obvious</td>
+              <td>Data quality control at point-of-care</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Limitations -->
+      <div class="xai-card" style="grid-column:1/-1;background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2);">
+        <h3>⚠️ Known Limitations & Responsible Use</h3>
+        <ul>
+          <li>The training dataset (n=1,014) is from Bangladesh — generalisability to other populations requires validation</li>
+          <li>Only 6 features are used; many clinically relevant factors (e.g., previous obstetric history, BMI, haemoglobin) are absent</li>
+          <li>Single time-point measurements — does not capture pregnancy progression over time</li>
+          <li>Class imbalance (fewer high-risk cases) is handled via SMOTE, but may slightly overestimate mid-risk boundaries</li>
+          <li><strong>This is a research prototype and must NOT be used as a standalone clinical diagnostic tool</strong></li>
+          <li>All predictions must be reviewed and verified by qualified healthcare professionals</li>
+        </ul>
+      </div>
+
+    </div><!-- /xai-grid -->
+  </div><!-- /tab-xai -->
+
+</main><!-- /main-content -->
+
+<!-- ══════════════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════════════ -->
+<footer>
+  <p>
+    <strong>MaternAI</strong> — Advanced Maternal Health Risk Prediction · Built with Explainable AI ·
+    Dataset: <a href="https://www.kaggle.com/datasets/csafrit2/maternal-health-risk-data" target="_blank">UCI Maternal Health Risk (Kaggle)</a>
+  </p>
+  <p style="margin-top:6px;">
+    ⚠️ Research prototype only — not approved for clinical diagnosis. Consult a qualified healthcare professional for medical advice.
+  </p>
+</footer>
+
+<!-- ══════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════ -->
+<script type="module" src="js/app.js"></script>
+
+<script>
+  // Tab switching fix — also update gauge pct text after render
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+
+  // Update gauge overlay text after prediction
+  document.addEventListener('click', e => {
+    if (e.target.id === 'predict-btn') {
+      setTimeout(() => {
+        const risk = document.getElementById('risk-label').textContent;
+        const conf = document.getElementById('confidence-text').textContent;
+        const pctEl = document.getElementById('gauge-pct-text');
+        if (pctEl) pctEl.textContent = conf.replace(' confidence','');
+      }, 200);
+    }
+  });
+</script>
+
+</body>
+</html>
