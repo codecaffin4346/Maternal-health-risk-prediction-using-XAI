@@ -313,3 +313,106 @@ export function renderFeatureImportance(ctx) {
     },
   });
 }
+
+// ─────────────────────────────────────────────────────────────────
+// LONGITUDINAL RISK TREND LINE CHART (USP)
+// ─────────────────────────────────────────────────────────────────
+export function renderTrendChart(ctx, historyData) {
+  if (ctx._chartInstance) ctx._chartInstance.destroy();
+
+  if (!historyData || historyData.length === 0) {
+    ctx._chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: ['No Records'], datasets: [{ data: [0] }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+    return;
+  }
+
+  // Chronological order (oldest to newest)
+  const ordered = [...historyData].reverse();
+  const labels  = ordered.map((h, i) => `Visit ${i+1} (${h.ts.split(',')[0] || h.ts})`);
+  const scores  = ordered.map(h => (h.probs[1] * 1 + h.probs[2] * 2).toFixed(2));
+  const sbpVals = ordered.map(h => h.input[1]);
+  const bsVals  = ordered.map(h => h.input[3]);
+
+  ctx._chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Risk Severity Score (0-2)',
+          data: scores,
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139,92,246,0.15)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 5,
+          pointBackgroundColor: '#8b5cf6',
+          yAxisID: 'y'
+        },
+        {
+          label: 'Systolic BP (mmHg)',
+          data: sbpVals,
+          borderColor: '#ef4444',
+          borderDash: [4, 4],
+          fill: false,
+          tension: 0.2,
+          pointRadius: 4,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'Blood Sugar (mmol/L)',
+          data: bsVals,
+          borderColor: '#38bdf8',
+          borderDash: [3, 3],
+          fill: false,
+          tension: 0.2,
+          pointRadius: 4,
+          yAxisID: 'y2'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          min: 0,
+          max: 2,
+          title: { display: true, text: 'Risk Score', color: '#a78bfa' },
+          ticks: {
+            callback: v => v === 0 ? 'Low' : v === 1 ? 'Mid' : v === 2 ? 'High' : v,
+            color: 'rgba(255,255,255,0.6)'
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        },
+        y1: {
+          type: 'linear',
+          display: false,
+          position: 'right',
+          grid: { drawOnChartArea: false }
+        },
+        y2: {
+          type: 'linear',
+          display: false,
+          position: 'right',
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}

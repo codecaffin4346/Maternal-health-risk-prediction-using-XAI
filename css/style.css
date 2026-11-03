@@ -584,3 +584,163 @@ footer a { color: var(--purple); }
   .two-col-grid { grid-template-columns: 1fr; }
   .nav-tabs { display: none; }
 }
+
+/* ── USP: CRITICAL ALERT BANNER ────────────────────── */
+.critical-alert-banner {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.1));
+  border: 1px solid rgba(239,68,68,0.4);
+  border-left: 5px solid #ef4444;
+  border-radius: var(--radius-md);
+  padding: 14px 18px; margin-bottom: 22px;
+  animation: pulseAlert 2.2s infinite;
+}
+@keyframes pulseAlert {
+  0%, 100% { box-shadow: 0 0 10px rgba(239,68,68,0.25); }
+  50% { box-shadow: 0 0 25px rgba(239,68,68,0.5); }
+}
+.alert-pulse-icon { font-size: 1.5rem; animation: shake 1.5s infinite; }
+@keyframes shake {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+.alert-content { font-size: 0.88rem; color: #fecaca; line-height: 1.45; }
+
+/* ── USP: CLINICAL CONTEXT & UNIT BAR ─────────────── */
+.clinical-context-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 16px; margin-bottom: 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 12px 18px; border-radius: var(--radius-md);
+  backdrop-filter: blur(12px);
+}
+.context-item { display: flex; align-items: center; gap: 10px; font-size: 0.83rem; color: var(--text-muted); }
+.styled-select {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 12px; border-radius: 8px;
+  font-size: 0.82rem; font-family: inherit; outline: none;
+  cursor: pointer; transition: var(--transition);
+}
+.styled-select:focus { border-color: var(--purple); }
+.styled-select option { background: #0f172a; color: #fff; }
+
+.unit-toggle-group {
+  display: flex; background: rgba(255,255,255,0.05);
+  border-radius: 8px; border: 1px solid var(--border);
+  overflow: hidden;
+}
+.unit-btn {
+  padding: 4px 10px; border: none; background: transparent;
+  color: var(--text-dim); font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: var(--transition);
+}
+.unit-btn:hover { color: var(--text); }
+.unit-btn.active {
+  background: var(--purple); color: #fff;
+  box-shadow: 0 0 10px rgba(139,92,246,0.5);
+}
+
+/* ── USP: WHAT-IF SIMULATOR ────────────────────────── */
+.what-if-card {
+  background: linear-gradient(145deg, rgba(139,92,246,0.08), rgba(99,102,241,0.04));
+  border: 1px solid rgba(139,92,246,0.25);
+}
+.card-title-flex { display: flex; align-items: center; justify-content: space-between; }
+.badge-mini {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  background: rgba(139,92,246,0.2); color: #c4b5fd;
+  border: 1px solid rgba(139,92,246,0.35); padding: 3px 10px; border-radius: 100px;
+}
+.what-if-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin: 16px 0;
+}
+.what-if-item {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.what-if-label {
+  display: flex; justify-content: space-between;
+  font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.sim-val-num { color: #a78bfa; font-family: monospace; font-size: 0.85rem; }
+.what-if-comparison {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+}
+.what-if-pill {
+  font-size: 0.78rem; font-weight: 700; padding: 3px 12px;
+  border-radius: 100px; background: rgba(255,255,255,0.08); color: var(--text-muted);
+  transition: var(--transition);
+}
+
+/* ── ACTION BUTTONS ────────────────────────────────── */
+.btn-action-accent {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+  color: #fff !important; font-weight: 600 !important;
+  border: none !important;
+  box-shadow: 0 2px 12px rgba(139,92,246,0.35);
+}
+.btn-action-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(139,92,246,0.55);
+}
+
+.btn-action-whatsapp {
+  background: linear-gradient(135deg, #25D366, #128C7E) !important;
+  color: #fff !important; font-weight: 600 !important;
+  border: none !important;
+  box-shadow: 0 2px 12px rgba(37,211,102,0.35);
+}
+.btn-action-whatsapp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(37,211,102,0.55);
+}
+
+/* ── DOCTOR QUESTIONS PREP (USP) ───────────────────── */
+.doctor-questions-grid {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 10px;
+}
+.doctor-question-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 16px;
+  transition: var(--transition);
+}
+.doctor-question-item:hover {
+  background: rgba(255,255,255,0.06); border-color: rgba(99,102,241,0.4);
+}
+.q-number {
+  background: rgba(99,102,241,0.25); color: #c7d2fe;
+  font-size: 0.75rem; font-weight: 700; border-radius: 6px;
+  padding: 3px 8px; flex-shrink: 0;
+}
+.q-text {
+  font-size: 0.88rem; color: var(--text); line-height: 1.5; margin: 0;
+}
+
+/* ── EMERGENCY HELP CARD ───────────────────────────── */
+.emergency-help-card {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 16px; margin-top: 20px;
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(15,23,42,0.8));
+  border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+.help-icon { font-size: 2rem; }
+.help-text { flex: 1; font-size: 0.88rem; color: #fecaca; }
+.help-text strong { display: block; color: #fff; margin-bottom: 2px; }
+.help-btn {
+  background: #ef4444; color: #fff; font-weight: 700;
+  font-size: 0.86rem; padding: 10px 18px; border-radius: 10px;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.4); transition: var(--transition);
+}
+.help-btn:hover {
+  background: #dc2626; transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239,68,68,0.6);
+}
+
+

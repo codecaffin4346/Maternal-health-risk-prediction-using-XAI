@@ -3,13 +3,17 @@
  */
 
 import { predict, FEATURE_RANGES, FEATURE_NAMES, FEATURE_UNITS, DATASET_STATS, BASELINE_PROBS } from './model.js';
-import { renderGauge, renderShapChart, renderRadar, renderProbBars, renderConfusionMatrix, renderFeatureImportance } from './charts.js';
+import { renderGauge, renderShapChart, renderRadar, renderProbBars, renderConfusionMatrix, renderFeatureImportance, renderTrendChart } from './charts.js';
 
 // ─────────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────────
 let currentResult = null;
 let history       = JSON.parse(localStorage.getItem('mhr_history') || '[]');
+let bsUnit        = 'mmol'; // 'mmol' or 'mgdl'
+let tempUnit      = 'f';    // 'f' or 'c'
+let selectedTrimester = 2;  // 1, 2, or 3
+let trendCtx      = null;
 
 // ─────────────────────────────────────────────────────────────────
 // RECOMMENDATION ENGINE
@@ -100,11 +104,43 @@ const NORMAL_LABELS = {
   5: ['Normal heart rate','Heart rate at upper boundary','Elevated heart rate'],
 };
 
+// Trimester-adjusted physiological thresholds (Clinical USP)
+const TRIMESTER_ADJUSTMENTS = {
+  1: { sbpMax: 120, dbpMax: 80, hrMax: 88 },
+  2: { sbpMax: 115, dbpMax: 76, hrMax: 92 }, // Normal physiological drop in SBP/DBP in T2
+  3: { sbpMax: 125, dbpMax: 82, hrMax: 96 }  // Rises back up in T3
+};
+
 function featureStatus(val, i) {
-  const r = FEATURE_RANGES[i];
+  const r = { ...FEATURE_RANGES[i] };
+  const adj = TRIMESTER_ADJUSTMENTS[selectedTrimester];
+  if (i === 1 && adj) r.normalMax = adj.sbpMax;
+  if (i === 2 && adj) r.normalMax = adj.dbpMax;
+  if (i === 5 && adj) r.normalMax = adj.hrMax;
+
   if (val <= r.normalMax && val >= r.normalMin) return 'normal';
   if (val <= r.warnMax   && val >= r.warnMin)   return 'warn';
   return 'critical';
+}
+
+function checkCriticalThresholds(input) {
+  const [age, sbp, dbp, bs, temp, hr] = input;
+  const criticals = [];
+  if (sbp >= 160 || dbp >= 110) criticals.push(`Severe Hypertensive Crisis (${sbp}/${dbp} mmHg)`);
+  if (bs >= 15.0) criticals.push(`Severe Hyperglycaemia (${bs.toFixed(1)} mmol/L)`);
+  if (temp >= 101.5) criticals.push(`High Maternal Fever (${temp.toFixed(1)}°F)`);
+  if (hr >= 115) criticals.push(`Tachycardia (${hr} bpm)`);
+
+  const banner = document.getElementById('critical-alert-banner');
+  const msgEl  = document.getElementById('critical-alert-msg');
+  if (banner && msgEl) {
+    if (criticals.length > 0) {
+      msgEl.innerHTML = `<strong>Immediate intervention advised:</strong> Detected ${criticals.join(' · ')}. Please seek acute obstetric triage.`;
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+  }
 }
 
 function buildClinicalSummary(result) {
@@ -125,11 +161,19 @@ function buildClinicalSummary(result) {
       ? ` (${pctDev}% outside normal range)`
       : '';
 
+    // Unit display label
+    let displayVal = `${val.toFixed(i===3?1:0)} ${FEATURE_UNITS[i]}`;
+    if (i === 3 && bsUnit === 'mgdl') {
+      displayVal = `${(val * 18.0182).toFixed(0)} mg/dL`;
+    } else if (i === 4 && tempUnit === 'c') {
+      displayVal = `${((val - 32) * 5 / 9).toFixed(1)} °C`;
+    }
+
     return {
       icon:    icons[status],
       status,
       name:    FEATURE_NAMES[i],
-      value:   `${val.toFixed(i===3?1:0)} ${FEATURE_UNITS[i]}`,
+      value:   displayVal,
       label:   NORMAL_LABELS[i][status === 'normal' ? 0 : status === 'warn' ? 1 : 2],
       devText,
       shapDir,
@@ -158,7 +202,15 @@ function updateSliderZone(slider, i) {
 const FIELD_IDS = ['age','sbp','dbp','bs','temp','hr'];
 
 function getInputValues() {
-  return FIELD_IDS.map(id => parseFloat(document.getElementById(id).value));
+  const rawValues = FIELD_IDS.map(id => parseFloat(document.getElementById(id).value));
+  // Convert units to internal canonical representation (mmol/L and °F) if necessary
+  if (bsUnit === 'mgdl') {
+    rawValues[3] = rawValues[3] / 18.0182;
+  }
+  if (tempUnit === 'c') {
+    rawValues[4] = (rawValues[4] * 9 / 5) + 32;
+  }
+  return rawValues;
 }
 
 function initInputSync() {
@@ -264,11 +316,349 @@ function showResults(result) {
     </div>
   `).join('');
 
+  // Check critical alarms
+  checkCriticalThresholds(result.input);
+
   // Recommendations
   const recs = generateRecommendations(result);
   document.getElementById('rec-header').textContent    = recs.header;
   document.getElementById('rec-header').style.color    = recs.color;
   document.getElementById('rec-list').innerHTML        = recs.items.map(r => `<li>${r}</li>`).join('');
+
+  // Initialise Doctor Consultation Prep Questions (USP)
+  renderDoctorQuestions(result);
+
+  // Initialise Live What-If Counterfactual Simulator
+  initWhatIfSimulator(result);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DOCTOR CONSULTATION QUESTIONS PREPARATION (USP)
+// ─────────────────────────────────────────────────────────────────
+const CLINICAL_QUESTIONS_MAP = {
+  1: [
+    'My systolic BP is currently running at elevated levels. Would you recommend initiating home ambulatory blood pressure monitoring?',
+    'Should we schedule a 24-hour urine protein or spot protein-to-creatinine test to screen for preeclampsia?'
+  ],
+  2: [
+    'My diastolic pressure is above the second-trimester benchmark. Are there position-related resting changes or magnesium supplements I should consider?'
+  ],
+  3: [
+    'Given my glucose readings, would you recommend early oral glucose tolerance testing (OGTT) or an HbA1c screening?',
+    'Should I consult with a maternal nutrition specialist for personalized gestational carbohydrate management?'
+  ],
+  0: [
+    'Does my maternal age indicate any supplementary fetal growth velocity scans or maternal Doppler ultrasound evaluations?'
+  ],
+  4: [
+    'With an elevated temperature, should we run a full blood count (FBC) or urine culture to check for asymptomatic urinary tract infections?'
+  ],
+  5: [
+    'My resting heart rate is notably high. Is this normal physiological pregnancy hemodilution, or should we evaluate thyroid or iron levels?'
+  ]
+};
+
+function renderDoctorQuestions(result) {
+  const container = document.getElementById('doctor-questions-list');
+  if (!container) return;
+
+  const questions = [
+    'Overall, based on my combined vital profile today, how often should we schedule my antenatal appointments?'
+  ];
+
+  // Pick top 2 risk drivers from SHAP
+  const topDrivers = result.shapValues
+    .map((v, i) => ({ i, v }))
+    .sort((a, b) => b.v - a.v)
+    .filter(x => x.v > 0);
+
+  topDrivers.slice(0, 2).forEach(({ i }) => {
+    if (CLINICAL_QUESTIONS_MAP[i]) {
+      questions.push(...CLINICAL_QUESTIONS_MAP[i]);
+    }
+  });
+
+  if (questions.length < 3) {
+    questions.push('What specific signs or symptoms (such as sudden edema or epigastric pain) should prompt me to go directly to labor triage?');
+  }
+
+  container.innerHTML = questions.map((q, idx) => `
+    <div class="doctor-question-item">
+      <span class="q-number">Q${idx + 1}</span>
+      <p class="q-text">${q}</p>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// WHATSAPP SHARE GENERATOR (VIRAL USP)
+// ─────────────────────────────────────────────────────────────────
+function shareToWhatsApp() {
+  if (!currentResult) {
+    showToast('Please run an assessment first', 'warn');
+    return;
+  }
+  const r = currentResult;
+  const input = r.input;
+  const topDriver = r.shapValues
+    .map((v, i) => ({ name: FEATURE_NAMES[i], v }))
+    .sort((a, b) => b.v - a.v)[0];
+
+  const shareText = `*MaternAI Maternal Health Clinical Summary*%0A` +
+    `Risk Category: *${r.riskLabel.toUpperCase()}* (${(r.confidence * 100).toFixed(0)}% AI Confidence)%0A%0A` +
+    `*Recorded Vitals:*%0A` +
+    `• Blood Pressure: ${input[1]}/${input[2]} mmHg%0A` +
+    `• Blood Glucose: ${input[3].toFixed(1)} mmol/L (${(input[3]*18.0182).toFixed(0)} mg/dL)%0A` +
+    `• Heart Rate: ${input[5]} bpm%0A` +
+    `• Body Temp: ${input[4]} °F%0A` +
+    `• Maternal Age: ${input[0]} years%0A%0A` +
+    `*Primary Driver (XAI):* ${topDriver.name} is the leading contributor to this assessment.%0A%0A` +
+    `Assessed via MaternAI Decision Support (UCI Benchmark).`;
+
+  window.open(`https://api.whatsapp.com/send?text=${shareText}`, '_blank');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DOCTOR EXPLAINER MODAL / TOGGLE (USP)
+// ─────────────────────────────────────────────────────────────────
+function toggleDoctorExplainerMode() {
+  const btn = document.getElementById('doctor-summary-btn');
+  const summaryCards = document.querySelectorAll('.summary-card');
+  const isDoctorMode = btn.classList.toggle('active-mode');
+
+  if (isDoctorMode) {
+    btn.textContent = '👤 Patient Mode View';
+    btn.style.background = 'var(--purple)';
+    btn.style.color = '#fff';
+    showToast('Doctor Clinical Explainer Mode enabled: technical physiological notes highlighted', 'info');
+    document.querySelectorAll('.summary-detail').forEach(el => {
+      el.style.fontWeight = '600';
+      el.style.color = '#c4b5fd';
+    });
+  } else {
+    btn.textContent = '🩺 Doctor Explainer Mode';
+    btn.style.background = '';
+    btn.style.color = '';
+    document.querySelectorAll('.summary-detail').forEach(el => {
+      el.style.fontWeight = 'normal';
+      el.style.color = 'var(--text-muted)';
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LIVE WHAT-IF COUNTERFACTUAL SIMULATOR (USP)
+// ─────────────────────────────────────────────────────────────────
+function initWhatIfSimulator(baseResult) {
+  const container = document.getElementById('what-if-controls');
+  if (!container) return;
+
+  const simInput = [...baseResult.input];
+  container.innerHTML = FEATURE_NAMES.map((name, i) => {
+    const r = FEATURE_RANGES[i];
+    const val = simInput[i];
+    const step = i === 3 || i === 4 ? 0.1 : 1;
+    return `
+      <div class="what-if-item">
+        <div class="what-if-label">
+          <span>${name}</span>
+          <span id="sim-val-${i}" class="sim-val-num">${val.toFixed(i===3?1:0)} ${FEATURE_UNITS[i]}</span>
+        </div>
+        <input type="range" class="range-slider sim-slider" data-idx="${i}" 
+               min="${r.min}" max="${r.max}" step="${step}" value="${val}" />
+      </div>
+    `;
+  }).join('');
+
+  const updateSim = () => {
+    const simResult = predict(simInput);
+    renderGauge(gaugeCtx, simResult.riskClass, simResult.probs);
+    renderShapChart(shapCtx, simResult.shapValues, simResult.input);
+    renderRadar(radarCtx, simResult.input);
+    renderProbBars(document.getElementById('prob-bars'), simResult.probs);
+
+    // Update risk badges
+    document.getElementById('risk-label').textContent = `${simResult.riskLabel} (Simulated)`;
+    document.getElementById('risk-label').style.color = simResult.riskColor;
+    document.getElementById('confidence-text').textContent = `${(simResult.confidence * 100).toFixed(1)}% confidence`;
+
+    // Calculate score delta
+    const baseScore = baseResult.probs[1] + 2 * baseResult.probs[2];
+    const newScore  = simResult.probs[1] + 2 * simResult.probs[2];
+    const delta     = newScore - baseScore;
+
+    const deltaBadge = document.getElementById('sim-delta-badge');
+    const guidance   = document.getElementById('sim-guidance-text');
+
+    if (Math.abs(delta) < 0.05) {
+      deltaBadge.textContent = 'Baseline Parity';
+      deltaBadge.style.background = 'rgba(255,255,255,0.08)';
+      deltaBadge.style.color = 'var(--text-muted)';
+      guidance.textContent = 'Slide SBP or Blood Sugar to evaluate therapeutic target effect';
+    } else if (delta < 0) {
+      deltaBadge.textContent = `Risk Reduction: ${(Math.abs(delta)*50).toFixed(0)}% lower`;
+      deltaBadge.style.background = 'rgba(34,197,94,0.18)';
+      deltaBadge.style.color = '#4ade80';
+      guidance.textContent = `Intervention shows positive transition toward ${simResult.riskLabel}`;
+    } else {
+      deltaBadge.textContent = `Risk Escalation: +${(delta*50).toFixed(0)}% higher`;
+      deltaBadge.style.background = 'rgba(239,68,68,0.18)';
+      deltaBadge.style.color = '#f87171';
+      guidance.textContent = 'Simulated vital shifts worsen secondary clinical risk markers';
+    }
+  };
+
+  container.querySelectorAll('.sim-slider').forEach(slider => {
+    slider.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.idx);
+      const val = parseFloat(e.target.value);
+      simInput[idx] = val;
+      document.getElementById(`sim-val-${idx}`).textContent = `${val.toFixed(idx===3?1:0)} ${FEATURE_UNITS[idx]}`;
+      updateSim();
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PDF CLINICAL REPORT GENERATION (USP)
+// ─────────────────────────────────────────────────────────────────
+function generateClinicalPDF() {
+  if (!currentResult) {
+    showToast('Please perform an assessment first', 'warn');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const res = currentResult;
+
+  // Header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 40, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MaternAI — Clinical Decision Support Report', 14, 20);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Generated: ${new Date().toLocaleString()} | ID: #MHR-${res.riskClass}-${Date.now().toString().slice(-6)}`, 14, 28);
+  doc.text('Machine Learning Model: Explainable Random Forest with TreeSHAP Attributions', 14, 34);
+
+  // Risk Classification Box
+  let riskColorRGB = [34, 197, 94];
+  if (res.riskClass === 1) riskColorRGB = [245, 158, 11];
+  if (res.riskClass === 2) riskColorRGB = [239, 68, 68];
+
+  doc.setFillColor(riskColorRGB[0], riskColorRGB[1], riskColorRGB[2]);
+  doc.roundedRect(14, 48, 182, 24, 3, 3, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`ASSESSED RISK: ${res.riskLabel.toUpperCase()}`, 20, 60);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Confidence: ${(res.confidence * 100).toFixed(1)}% | Low: ${(res.probs[0]*100).toFixed(0)}% · Mid: ${(res.probs[1]*100).toFixed(0)}% · High: ${(res.probs[2]*100).toFixed(0)}%`, 20, 67);
+
+  // Patient Clinical Vitals Table
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Patient Recorded Vitals & Threshold Comparison', 14, 86);
+
+  let yPos = 94;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(241, 245, 249);
+  doc.rect(14, yPos - 5, 182, 8, 'F');
+  doc.text('Parameter', 18, yPos);
+  doc.text('Patient Value', 65, yPos);
+  doc.text('Normal Reference Range', 110, yPos);
+  doc.text('SHAP Impact Vector', 158, yPos);
+  yPos += 8;
+
+  doc.setFont('helvetica', 'normal');
+  res.input.forEach((val, i) => {
+    const r = FEATURE_RANGES[i];
+    const shap = res.shapValues[i];
+    const shapTxt = shap > 0.01 ? `+${shap.toFixed(3)} (↑ Risk)` : shap < -0.01 ? `${shap.toFixed(3)} (↓ Risk)` : '0.000 (Neutral)';
+
+    doc.text(FEATURE_NAMES[i], 18, yPos);
+    doc.text(`${val.toFixed(i===3?1:0)} ${FEATURE_UNITS[i]}`, 65, yPos);
+    doc.text(`${r.normalMin} - ${r.normalMax} ${FEATURE_UNITS[i]}`, 110, yPos);
+    doc.text(shapTxt, 158, yPos);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, yPos + 2, 196, yPos + 2);
+    yPos += 8;
+  });
+
+  // Clinical Recommendations Section
+  yPos += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Actionable Clinical Recommendations (SHAP Prioritized)', 14, yPos);
+
+  yPos += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const recs = generateRecommendations(res);
+  recs.items.slice(0, 5).forEach((item) => {
+    doc.text(`• ${item}`, 18, yPos);
+    yPos += 6;
+  });
+
+  // Disclaimer Footer
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('Notice: Research prototype decision support only. Not approved as an autonomous clinical diagnostic tool.', 14, 280);
+
+  doc.save(`MaternAI_Report_${Date.now()}.pdf`);
+  showToast('Clinical PDF report exported successfully!', 'success');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SHAREABLE LINK ENCODING (USP)
+// ─────────────────────────────────────────────────────────────────
+function shareAssessmentLink() {
+  if (!currentResult) {
+    showToast('Run an assessment first to generate share link', 'warn');
+    return;
+  }
+  const encoded = btoa(JSON.stringify(currentResult.input));
+  const shareUrl = `${window.location.origin}${window.location.pathname}#assessment=${encoded}`;
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    showToast('Shareable link copied to clipboard!', 'success');
+  }).catch(() => {
+    prompt('Copy your assessment link:', shareUrl);
+  });
+}
+
+function checkUrlSharedAssessment() {
+  const hash = window.location.hash;
+  if (hash.includes('assessment=')) {
+    try {
+      const dataStr = atob(hash.split('assessment=')[1]);
+      const inputs = JSON.parse(dataStr);
+      if (Array.isArray(inputs) && inputs.length === 6) {
+        inputs.forEach((val, i) => {
+          const numEl = document.getElementById(FIELD_IDS[i]);
+          const sliderEl = document.getElementById(`${FIELD_IDS[i]}-slider`);
+          if (numEl) numEl.value = val;
+          if (sliderEl) sliderEl.value = val;
+          updateSliderZone(sliderEl, i);
+        });
+        showToast('Loaded shared assessment data from link', 'info');
+        runPrediction();
+      }
+    } catch (e) {
+      console.error('Failed to parse shared link data', e);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -297,13 +687,17 @@ function renderHistoryList() {
       <div class="history-vitals">
         Age ${h.input[0]}y · SBP ${h.input[1]} · DBP ${h.input[2]} · BS ${h.input[3].toFixed(1)} · ${h.input[4]}°F · HR ${h.input[5]}
       </div>
-      <div class="history-probs">
         <span style="color:#22c55e">Low ${(h.probs[0]*100).toFixed(0)}%</span>
         <span style="color:#f59e0b">Mid ${(h.probs[1]*100).toFixed(0)}%</span>
         <span style="color:#ef4444">High ${(h.probs[2]*100).toFixed(0)}%</span>
       </div>
     </div>
   `).join('');
+
+  // Render longitudinal chart alongside list
+  if (trendCtx) {
+    renderTrendChart(trendCtx, history);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -420,10 +814,75 @@ window.addEventListener('DOMContentLoaded', () => {
   gaugeCtx = document.getElementById('gauge-chart')?.getContext('2d');
   shapCtx  = document.getElementById('shap-chart')?.getContext('2d');
   radarCtx = document.getElementById('radar-chart')?.getContext('2d');
+  trendCtx = document.getElementById('trend-line-chart')?.getContext('2d');
 
   initInputSync();
   initTabs();
   renderHistoryList();
+  checkUrlSharedAssessment();
+
+  // Unit toggles
+  document.querySelectorAll('[data-unit]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const parent = e.target.closest('.unit-toggle-group');
+      parent.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      const unit = e.target.dataset.unit;
+      if (unit === 'mmol' || unit === 'mgdl') {
+        bsUnit = unit;
+        const num = document.getElementById('bs');
+        const slider = document.getElementById('bs-slider');
+        const unitLabel = num.closest('.input-group')?.querySelector('.input-unit');
+        if (unitLabel) unitLabel.textContent = unit === 'mgdl' ? 'mg/dL' : 'mmol/L';
+        if (unit === 'mgdl') {
+          slider.min = '70'; slider.max = '340'; slider.step = '1';
+          slider.value = (parseFloat(slider.value) * 18.0182).toFixed(0);
+          num.value = slider.value;
+        } else {
+          slider.min = '6.0'; slider.max = '19.0'; slider.step = '0.1';
+          slider.value = (parseFloat(slider.value) / 18.0182).toFixed(1);
+          num.value = slider.value;
+        }
+      } else if (unit === 'f' || unit === 'c') {
+        tempUnit = unit;
+        const num = document.getElementById('temp');
+        const slider = document.getElementById('temp-slider');
+        const unitLabel = num.closest('.input-group')?.querySelector('.input-unit');
+        if (unitLabel) unitLabel.textContent = unit === 'c' ? '°C' : '°F';
+        if (unit === 'c') {
+          slider.min = '36.0'; slider.max = '40.0'; slider.step = '0.1';
+          slider.value = ((parseFloat(slider.value) - 32) * 5 / 9).toFixed(1);
+          num.value = slider.value;
+        } else {
+          slider.min = '97.0'; slider.max = '104.0'; slider.step = '0.1';
+          slider.value = ((parseFloat(slider.value) * 9 / 5) + 32).toFixed(1);
+          num.value = slider.value;
+        }
+      }
+    });
+  });
+
+  // Gestational Trimester Select
+  document.getElementById('gestational-trimester')?.addEventListener('change', (e) => {
+    selectedTrimester = parseInt(e.target.value);
+    FIELD_IDS.forEach((id, i) => {
+      const slider = document.getElementById(`${id}-slider`);
+      if (slider) updateSliderZone(slider, i);
+    });
+    showToast(`Adjusted physiological thresholds for Trimester ${selectedTrimester}`, 'info');
+  });
+
+  // Clinical PDF Export Button
+  document.getElementById('download-pdf-btn')?.addEventListener('click', generateClinicalPDF);
+
+  // WhatsApp Clinical Summary Share Button
+  document.getElementById('whatsapp-share-btn')?.addEventListener('click', shareToWhatsApp);
+
+  // Doctor Explainer Mode Toggle Button
+  document.getElementById('doctor-summary-btn')?.addEventListener('click', toggleDoctorExplainerMode);
+
+  // Share Result Link Button
+  document.getElementById('share-result-btn')?.addEventListener('click', shareAssessmentLink);
 
   // Predict button
   document.getElementById('predict-btn').addEventListener('click', runPrediction);

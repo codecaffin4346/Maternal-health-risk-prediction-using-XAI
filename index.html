@@ -15,6 +15,9 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+  <!-- jsPDF for Clinical Report Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -138,6 +141,41 @@
         <p>Enter the patient's clinical measurements below. All 6 fields are required.</p>
       </div>
 
+      <!-- Critical Clinical Alert Banner (Hidden by default) -->
+      <div id="critical-alert-banner" class="critical-alert-banner hidden">
+        <div class="alert-pulse-icon">🚨</div>
+        <div class="alert-content">
+          <strong>CRITICAL THRESHOLD ALERT:</strong>
+          <span id="critical-alert-msg">One or more vitals are in the hypertensive crisis or diabetic emergency range. Immediate medical evaluation recommended.</span>
+        </div>
+      </div>
+
+      <!-- Clinical Context & Trimester Tuning Bar -->
+      <div class="clinical-context-bar">
+        <div class="context-item">
+          <label for="gestational-trimester">🤰 Gestational Trimester:</label>
+          <select id="gestational-trimester" class="styled-select">
+            <option value="1">Trimester 1 (Weeks 1 - 12)</option>
+            <option value="2" selected>Trimester 2 (Weeks 13 - 26)</option>
+            <option value="3">Trimester 3 (Weeks 27 - 40)</option>
+          </select>
+        </div>
+        <div class="context-item">
+          <label>🩸 Blood Sugar Unit:</label>
+          <div class="unit-toggle-group">
+            <button type="button" class="unit-btn active" id="unit-mmol" data-unit="mmol">mmol/L</button>
+            <button type="button" class="unit-btn" id="unit-mgdl" data-unit="mgdl">mg/dL</button>
+          </div>
+        </div>
+        <div class="context-item">
+          <label>🌡️ Temp Unit:</label>
+          <div class="unit-toggle-group">
+            <button type="button" class="unit-btn active" id="unit-f" data-unit="f">°F</button>
+            <button type="button" class="unit-btn" id="unit-c" data-unit="c">°C</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Sample presets -->
       <div class="preset-bar">
         <span>Load sample:</span>
@@ -254,8 +292,28 @@
           </div>
         </div>
         <div class="results-actions">
+          <button class="btn-sm btn-action-accent" id="download-pdf-btn">📄 Export Clinical PDF</button>
+          <button class="btn-sm btn-action-whatsapp" id="whatsapp-share-btn">💬 Send to Doctor via WhatsApp</button>
+          <button class="btn-sm" id="share-result-btn">🔗 Share Link</button>
+          <button class="btn-sm" id="doctor-summary-btn">🩺 Doctor Explainer Mode</button>
           <button class="btn-sm" id="back-btn">← Edit Inputs</button>
           <button class="btn-sm" id="new-assessment-btn">+ New Assessment</button>
+        </div>
+      </div>
+
+      <!-- What-If Counterfactual Interactive Simulator -->
+      <div class="result-card what-if-card" style="margin-bottom:24px;">
+        <div class="card-title-flex">
+          <div class="card-title" style="margin-bottom:0;border:none;padding:0;">⚡ Live Counterfactual "What-If" Simulator</div>
+          <span class="badge-mini">Interactive Recourse</span>
+        </div>
+        <p style="font-size:0.84rem;color:var(--text-muted);margin:10px 0 16px;">
+          Adjust patient vitals dynamically below to simulate medical interventions and instantly observe how risk category and SHAP attributions respond in real time:
+        </p>
+        <div class="what-if-grid" id="what-if-controls"></div>
+        <div class="what-if-comparison" id="what-if-feedback">
+          <span class="what-if-pill" id="sim-delta-badge">Baseline vs Simulation</span>
+          <span id="sim-guidance-text" style="font-size:0.85rem;color:var(--text-muted);">Slide parameters above to view therapeutic goals</span>
         </div>
       </div>
 
@@ -310,6 +368,28 @@
         </div>
       </div>
 
+      <!-- Doctor Consultation Prep: Questions To Ask (User-Centric USP) -->
+      <div class="result-card" style="margin-bottom:24px; border-left: 4px solid var(--indigo);">
+        <div class="card-title-flex">
+          <div class="card-title" style="margin-bottom:0;border:none;padding:0;">🩺 Questions to Ask Your Obstetrician at Your Next Visit</div>
+          <span class="badge-mini" style="background:rgba(99,102,241,0.2);color:#a5b4fc;border-color:rgba(99,102,241,0.4);">Patient Advocacy</span>
+        </div>
+        <p style="font-size:0.84rem;color:var(--text-muted);margin:10px 0 14px;">
+          Many pregnant women feel overwhelmed during appointments. Take these specific, AI-tailored questions to your doctor based on your current vital risk drivers:
+        </p>
+        <div id="doctor-questions-list" class="doctor-questions-grid"></div>
+      </div>
+
+      <!-- Emergency Helpline Quick Dial (User-Centric USP) -->
+      <div class="emergency-help-card">
+        <div class="help-icon">🚨</div>
+        <div class="help-text">
+          <strong>Need immediate clinical assistance or feeling severe symptoms?</strong>
+          <span>(Severe headache, blurred vision, sudden swelling, or chest tightness require urgent hospital triage).</span>
+        </div>
+        <a href="tel:112" class="help-btn">📞 Emergency Hotline (112 / 911)</a>
+      </div>
+
     </div><!-- /results-section -->
   </div><!-- /tab-assess -->
 
@@ -319,9 +399,21 @@
   ──────────────────────────────────────────────── -->
   <div class="tab-panel hidden" id="tab-history">
     <div class="section-header">
-      <h2>📋 Assessment History</h2>
-      <p>Your last 20 assessments are stored locally in your browser.</p>
+      <h2>📋 Assessment History & Longitudinal Trends</h2>
+      <p>Assessments stored in your browser session with multi-visit health trajectories.</p>
     </div>
+    
+    <!-- Longitudinal Risk Trajectory Graph (USP) -->
+    <div class="result-card" style="margin-bottom:24px;">
+      <div class="card-title">📈 Longitudinal Maternal Risk Trajectory</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:14px;">
+        Tracks how patient vitals and overall risk score evolve across successive antenatal visits:
+      </p>
+      <div style="height:220px;position:relative;">
+        <canvas id="trend-line-chart"></canvas>
+      </div>
+    </div>
+
     <div class="history-toolbar">
       <button class="btn-sm" id="export-btn">⬇ Export CSV</button>
     </div>
