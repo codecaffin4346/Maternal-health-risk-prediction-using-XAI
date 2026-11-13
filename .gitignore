@@ -38,3 +38,7 @@ js/backups/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local development and browser test artifacts
+node_modules/
+test-results/

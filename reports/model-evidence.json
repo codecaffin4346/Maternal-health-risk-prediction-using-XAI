@@ -1,0 +1,745 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-13T19:31:30.819819+00:00",
+  "status": "research_only_not_clinically_validated",
+  "evaluation_type": "reference_replay_not_holdout",
+  "limitations": [
+    "Training membership of the existing model is unknown. This replay may include training records; these scores do not measure unseen-patient performance.",
+    "No external validation, prospective study, clinical outcome assessment or calibration on an independent cohort was performed.",
+    "Do not substitute these replay scores for the historical cross-validation metrics in DATASET_STATS.",
+    "Independent Python/JavaScript parity verifies execution of the shipped trees, not equivalence to an unavailable original sklearn model or model correctness."
+  ],
+  "dataset": {
+    "filename": "maternal_health_risk.csv",
+    "sha256": "a1f7025719f84715096e0d1f95ae2e56b57809b9b15449e1836c96a7d976ae9b",
+    "source": {
+      "source_url": "https://archive.ics.uci.edu/static/public/863/maternal+health+risk.zip",
+      "dataset_page": "https://archive.ics.uci.edu/dataset/863/maternal+health+risk",
+      "retrieved_at": "2026-11-13T19:31:30.232947+00:00",
+      "archive_sha256": "84f0de0d647bb217ff7224ff265afadf27eb65c5483baaf1cfcc59abadeb75b1",
+      "csv_sha256": "a1f7025719f84715096e0d1f95ae2e56b57809b9b15449e1836c96a7d976ae9b",
+      "archive_member": "Maternal Health Risk Data Set.csv",
+      "citation": "Ahmed, M. (2020). Maternal Health Risk. UCI. DOI:10.24432/C5DP5D",
+      "license": "CC BY 4.0"
+    },
+    "source_hash_verified": true,
+    "raw_rows": 1014,
+    "unusable_rows": 0,
+    "issues": [],
+    "usable_rows": 1014,
+    "class_counts": {
+      "low risk": 406,
+      "mid risk": 336,
+      "high risk": 272
+    },
+    "unique_complete_rows": 452,
+    "duplicate_complete_rows": 562,
+    "unique_measurement_vectors": 416,
+    "conflicting_label_groups": 35,
+    "rows_in_conflicting_groups": 215,
+    "systolic_not_above_diastolic": 0,
+    "legacy_eligible_rows": 1004,
+    "features": {
+      "Age": {
+        "minimum": 10.0,
+        "maximum": 70.0,
+        "outside_browser_range": 138,
+        "outside_legacy_training_bounds": 8
+      },
+      "SystolicBP": {
+        "minimum": 70.0,
+        "maximum": 160.0,
+        "outside_browser_range": 0,
+        "outside_legacy_training_bounds": 0
+      },
+      "DiastolicBP": {
+        "minimum": 49.0,
+        "maximum": 100.0,
+        "outside_browser_range": 0,
+        "outside_legacy_training_bounds": 0
+      },
+      "BS": {
+        "minimum": 6.0,
+        "maximum": 19.0,
+        "outside_browser_range": 0,
+        "outside_legacy_training_bounds": 0
+      },
+      "BodyTemp": {
+        "minimum": 98.0,
+        "maximum": 103.0,
+        "outside_browser_range": 0,
+        "outside_legacy_training_bounds": 0
+      },
+      "HeartRate": {
+        "minimum": 7.0,
+        "maximum": 90.0,
+        "outside_browser_range": 2,
+        "outside_legacy_training_bounds": 2
+      }
+    },
+    "identity_limit": "No patient, visit, hospital or collection-time identifiers. Equal measurements do not prove equal patients; independent patient-level splits cannot be established.",
+    "label_limit": "The CSV provides risk categories, not longitudinal pregnancy outcomes. Label correctness and outcome benefit cannot be established from this file."
+  },
+  "model": {
+    "file": "js/model.js",
+    "sha256": "6d988ea3f78ed5348dddf2de225f3e19806fddef9b345867ab98ae608f785a8f",
+    "tree_count": 10,
+    "historical_training_metadata": {
+      "accuracy": 0.7639,
+      "macro_f1": 0.7681,
+      "auc_roc": 0.9075,
+      "cv_folds": 5,
+      "n_samples": 1004,
+      "n_features": 6,
+      "n_classes": 3,
+      "class_dist": {
+        "low": 399,
+        "mid": 336,
+        "high": 269
+      },
+      "per_class": {
+        "low": {
+          "precision": 0.7607,
+          "recall": 0.8045,
+          "f1": 0.782
+        },
+        "mid": {
+          "precision": 0.6835,
+          "recall": 0.6429,
+          "f1": 0.6626
+        },
+        "high": {
+          "precision": 0.8647,
+          "recall": 0.855,
+          "f1": 0.8598
+        }
+      },
+      "feature_importance": [
+        0.1137,
+        0.2269,
+        0.1238,
+        0.3993,
+        0.0679,
+        0.0683
+      ],
+      "confusion": [
+        [
+          321,
+          73,
+          5
+        ],
+        [
+          89,
+          216,
+          31
+        ],
+        [
+          12,
+          27,
+          230
+        ]
+      ]
+    }
+  },
+  "execution_parity": {
+    "reference_rows": {
+      "records_checked": 1014,
+      "mismatches": 0,
+      "maximum_probability_difference": 2.220446049250313e-16
+    },
+    "boundary_probes": {
+      "records_checked": 273,
+      "mismatches": 0,
+      "maximum_probability_difference": 1.1102230246251565e-16
+    }
+  },
+  "replay": {
+    "all_usable_rows": {
+      "rows": 1014,
+      "accuracy": 0.7297830374753451,
+      "macro_f1": 0.7196119641025008,
+      "macro_auc_ovr": 0.8794022661084376,
+      "confusion_matrix": [
+        [
+          361,
+          41,
+          4
+        ],
+        [
+          147,
+          149,
+          40
+        ],
+        [
+          17,
+          25,
+          230
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 406,
+          "precision": 0.6876190476190476,
+          "recall": 0.8891625615763546,
+          "f1": 0.7755102040816326
+        },
+        "mid risk": {
+          "support": 336,
+          "precision": 0.6930232558139535,
+          "recall": 0.44345238095238093,
+          "f1": 0.5408348457350273
+        },
+        "high risk": {
+          "support": 272,
+          "precision": 0.8394160583941606,
+          "recall": 0.8455882352941176,
+          "f1": 0.8424908424908425
+        }
+      },
+      "high_risk_missed": 42,
+      "high_risk_predicted_low": 17,
+      "non_high_flagged_high": 44,
+      "high_risk_false_positive_rate": 0.05929919137466307,
+      "multiclass_brier_sum": 0.3893705252323117,
+      "log_loss": 0.6393267023963795,
+      "top_label_ece_10_bins": 0.11356229841614314,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.3,
+          "upper_bound": 0.4,
+          "count": 9,
+          "observed_accuracy": 0.5555555555555556,
+          "mean_top_probability": 0.38212234090992425
+        },
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 194,
+          "observed_accuracy": 0.5463917525773195,
+          "mean_top_probability": 0.4552431254538541
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 368,
+          "observed_accuracy": 0.6413043478260869,
+          "mean_top_probability": 0.5473034884933113
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 242,
+          "observed_accuracy": 0.8140495867768595,
+          "mean_top_probability": 0.6431717692092408
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 85,
+          "observed_accuracy": 0.9411764705882353,
+          "mean_top_probability": 0.7425063239981702
+        },
+        {
+          "lower_bound": 0.8,
+          "upper_bound": 0.9,
+          "count": 3,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.8345905274280591
+        },
+        {
+          "lower_bound": 0.9,
+          "upper_bound": 1.0,
+          "count": 113,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.9771637253406223
+        }
+      ]
+    },
+    "unique_complete_rows": {
+      "rows": 452,
+      "accuracy": 0.7477876106194691,
+      "macro_f1": 0.6966599355735336,
+      "macro_auc_ovr": 0.86052847308541,
+      "confusion_matrix": [
+        [
+          211,
+          22,
+          1
+        ],
+        [
+          50,
+          42,
+          14
+        ],
+        [
+          14,
+          13,
+          85
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 234,
+          "precision": 0.7672727272727272,
+          "recall": 0.9017094017094017,
+          "f1": 0.8290766208251473
+        },
+        "mid risk": {
+          "support": 106,
+          "precision": 0.5454545454545454,
+          "recall": 0.39622641509433965,
+          "f1": 0.45901639344262296
+        },
+        "high risk": {
+          "support": 112,
+          "precision": 0.85,
+          "recall": 0.7589285714285714,
+          "f1": 0.8018867924528302
+        }
+      },
+      "high_risk_missed": 27,
+      "high_risk_predicted_low": 14,
+      "non_high_flagged_high": 15,
+      "high_risk_false_positive_rate": 0.04411764705882353,
+      "multiclass_brier_sum": 0.4004579128633776,
+      "log_loss": 0.6643901169299333,
+      "top_label_ece_10_bins": 0.15192256887433822,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.3,
+          "upper_bound": 0.4,
+          "count": 7,
+          "observed_accuracy": 0.5714285714285714,
+          "mean_top_probability": 0.38349353627892296
+        },
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 95,
+          "observed_accuracy": 0.49473684210526314,
+          "mean_top_probability": 0.452587102694486
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 173,
+          "observed_accuracy": 0.7341040462427746,
+          "mean_top_probability": 0.548398961845686
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 107,
+          "observed_accuracy": 0.8598130841121495,
+          "mean_top_probability": 0.6396097225020689
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 33,
+          "observed_accuracy": 0.9393939393939394,
+          "mean_top_probability": 0.7440085905756689
+        },
+        {
+          "lower_bound": 0.8,
+          "upper_bound": 0.9,
+          "count": 2,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.8363857911420886
+        },
+        {
+          "lower_bound": 0.9,
+          "upper_bound": 1.0,
+          "count": 35,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.9746986737304055
+        }
+      ]
+    },
+    "browser_supported_rows": {
+      "rows": 874,
+      "accuracy": 0.7311212814645309,
+      "macro_f1": 0.7272734337620159,
+      "macro_auc_ovr": 0.8778101536787714,
+      "confusion_matrix": [
+        [
+          324,
+          38,
+          4
+        ],
+        [
+          130,
+          142,
+          23
+        ],
+        [
+          15,
+          25,
+          173
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 366,
+          "precision": 0.6908315565031983,
+          "recall": 0.8852459016393442,
+          "f1": 0.7760479041916167
+        },
+        "mid risk": {
+          "support": 295,
+          "precision": 0.6926829268292682,
+          "recall": 0.48135593220338985,
+          "f1": 0.5680000000000001
+        },
+        "high risk": {
+          "support": 213,
+          "precision": 0.865,
+          "recall": 0.812206572769953,
+          "f1": 0.837772397094431
+        }
+      },
+      "high_risk_missed": 40,
+      "high_risk_predicted_low": 15,
+      "non_high_flagged_high": 27,
+      "high_risk_false_positive_rate": 0.04084720121028744,
+      "multiclass_brier_sum": 0.3957459962020659,
+      "log_loss": 0.6508794168999587,
+      "top_label_ece_10_bins": 0.12401505690847311,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.3,
+          "upper_bound": 0.4,
+          "count": 6,
+          "observed_accuracy": 0.5,
+          "mean_top_probability": 0.38051210474561925
+        },
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 174,
+          "observed_accuracy": 0.5632183908045977,
+          "mean_top_probability": 0.45333585672597926
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 327,
+          "observed_accuracy": 0.6391437308868502,
+          "mean_top_probability": 0.5476063739597344
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 207,
+          "observed_accuracy": 0.8405797101449275,
+          "mean_top_probability": 0.6443956931691078
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 79,
+          "observed_accuracy": 0.9367088607594937,
+          "mean_top_probability": 0.7429562691805974
+        },
+        {
+          "lower_bound": 0.8,
+          "upper_bound": 0.9,
+          "count": 3,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.8345905274280591
+        },
+        {
+          "lower_bound": 0.9,
+          "upper_bound": 1.0,
+          "count": 78,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.9717028069847503
+        }
+      ]
+    }
+  },
+  "age_subgroups": {
+    "under_20": {
+      "rows": 279,
+      "accuracy": 0.6164874551971327,
+      "macro_f1": 0.5370377001494212,
+      "macro_auc_ovr": 0.824260531259108,
+      "confusion_matrix": [
+        [
+          133,
+          6,
+          0
+        ],
+        [
+          74,
+          23,
+          4
+        ],
+        [
+          9,
+          14,
+          16
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 139,
+          "precision": 0.6157407407407407,
+          "recall": 0.9568345323741008,
+          "f1": 0.7492957746478872
+        },
+        "mid risk": {
+          "support": 101,
+          "precision": 0.5348837209302325,
+          "recall": 0.22772277227722773,
+          "f1": 0.3194444444444445
+        },
+        "high risk": {
+          "support": 39,
+          "precision": 0.8,
+          "recall": 0.41025641025641024,
+          "f1": 0.5423728813559321
+        }
+      },
+      "high_risk_missed": 23,
+      "high_risk_predicted_low": 9,
+      "non_high_flagged_high": 4,
+      "high_risk_false_positive_rate": 0.016666666666666666,
+      "multiclass_brier_sum": 0.4739021362135123,
+      "log_loss": 0.7581395824633744,
+      "top_label_ece_10_bins": 0.14631109142099785,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.3,
+          "upper_bound": 0.4,
+          "count": 4,
+          "observed_accuracy": 0.5,
+          "mean_top_probability": 0.37732315711842884
+        },
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 91,
+          "observed_accuracy": 0.5164835164835165,
+          "mean_top_probability": 0.4355736596426415
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 101,
+          "observed_accuracy": 0.44554455445544555,
+          "mean_top_probability": 0.5510096043089071
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 58,
+          "observed_accuracy": 0.9137931034482759,
+          "mean_top_probability": 0.6353028559766127
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 23,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.7467440967888521
+        },
+        {
+          "lower_bound": 0.8,
+          "upper_bound": 0.9,
+          "count": 2,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.8310000000000001
+        }
+      ]
+    },
+    "20_to_34": {
+      "rows": 417,
+      "accuracy": 0.7817745803357314,
+      "macro_f1": 0.803872195176543,
+      "macro_auc_ovr": 0.9018649988770308,
+      "confusion_matrix": [
+        [
+          143,
+          31,
+          0
+        ],
+        [
+          46,
+          116,
+          2
+        ],
+        [
+          1,
+          11,
+          67
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 174,
+          "precision": 0.7526315789473684,
+          "recall": 0.8218390804597702,
+          "f1": 0.7857142857142858
+        },
+        "mid risk": {
+          "support": 164,
+          "precision": 0.7341772151898734,
+          "recall": 0.7073170731707317,
+          "f1": 0.7204968944099378
+        },
+        "high risk": {
+          "support": 79,
+          "precision": 0.9710144927536232,
+          "recall": 0.8481012658227848,
+          "f1": 0.9054054054054054
+        }
+      },
+      "high_risk_missed": 12,
+      "high_risk_predicted_low": 1,
+      "non_high_flagged_high": 2,
+      "high_risk_false_positive_rate": 0.005917159763313609,
+      "multiclass_brier_sum": 0.36511933909102406,
+      "log_loss": 0.6015013438342761,
+      "top_label_ece_10_bins": 0.16587798759135453,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 60,
+          "observed_accuracy": 0.6166666666666667,
+          "mean_top_probability": 0.47762459054082673
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 171,
+          "observed_accuracy": 0.7076023391812866,
+          "mean_top_probability": 0.5460935988583888
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 120,
+          "observed_accuracy": 0.85,
+          "mean_top_probability": 0.638558554721858
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 26,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.7411526029841939
+        },
+        {
+          "lower_bound": 0.9,
+          "upper_bound": 1.0,
+          "count": 40,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.9723101023239767
+        }
+      ]
+    },
+    "35_and_over": {
+      "rows": 318,
+      "accuracy": 0.7610062893081762,
+      "macro_f1": 0.6348125157560102,
+      "macro_auc_ovr": 0.8822331681814312,
+      "confusion_matrix": [
+        [
+          85,
+          4,
+          4
+        ],
+        [
+          27,
+          10,
+          34
+        ],
+        [
+          7,
+          0,
+          147
+        ]
+      ],
+      "per_class": {
+        "low risk": {
+          "support": 93,
+          "precision": 0.7142857142857143,
+          "recall": 0.9139784946236559,
+          "f1": 0.8018867924528302
+        },
+        "mid risk": {
+          "support": 71,
+          "precision": 0.7142857142857143,
+          "recall": 0.14084507042253522,
+          "f1": 0.23529411764705882
+        },
+        "high risk": {
+          "support": 154,
+          "precision": 0.7945945945945946,
+          "recall": 0.9545454545454546,
+          "f1": 0.8672566371681416
+        }
+      },
+      "high_risk_missed": 7,
+      "high_risk_predicted_low": 7,
+      "non_high_flagged_high": 38,
+      "high_risk_false_positive_rate": 0.23170731707317074,
+      "multiclass_brier_sum": 0.3470070823303049,
+      "log_loss": 0.5846863910180992,
+      "top_label_ece_10_bins": 0.08430863900331907,
+      "calibration_bins": [
+        {
+          "lower_bound": 0.3,
+          "upper_bound": 0.4,
+          "count": 5,
+          "observed_accuracy": 0.6,
+          "mean_top_probability": 0.3859616879431206
+        },
+        {
+          "lower_bound": 0.4,
+          "upper_bound": 0.5,
+          "count": 43,
+          "observed_accuracy": 0.5116279069767442,
+          "mean_top_probability": 0.4656392529794813
+        },
+        {
+          "lower_bound": 0.5,
+          "upper_bound": 0.6,
+          "count": 96,
+          "observed_accuracy": 0.7291666666666666,
+          "mean_top_probability": 0.5455594617245195
+        },
+        {
+          "lower_bound": 0.6,
+          "upper_bound": 0.7,
+          "count": 64,
+          "observed_accuracy": 0.65625,
+          "mean_top_probability": 0.6589527489901551
+        },
+        {
+          "lower_bound": 0.7,
+          "upper_bound": 0.8,
+          "count": 36,
+          "observed_accuracy": 0.8611111111111112,
+          "mean_top_probability": 0.7407765454475508
+        },
+        {
+          "lower_bound": 0.8,
+          "upper_bound": 0.9,
+          "count": 1,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.841771582284177
+        },
+        {
+          "lower_bound": 0.9,
+          "upper_bound": 1.0,
+          "count": 73,
+          "observed_accuracy": 1.0,
+          "mean_top_probability": 0.9798232448017984
+        }
+      ]
+    }
+  }
+}

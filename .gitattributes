@@ -1,0 +1,4 @@
+# Keep the audited model checksum stable across Windows and Linux checkouts.
+js/model.js text eol=lf
+# Preserve upstream bundled JavaScript byte-for-byte, including license formatting.
+vendor/*.js -text -whitespace

@@ -1,7 +1,12 @@
+import {initEvidence} from './evidence.js';
+import {t, fieldName, riskName, errorMessage, initLanguage} from './i18n.js';
+import {initGuided} from './guided.js';
+import {initOffline} from './offline.js';
 /**
  * app.js — Main UI logic, form handling, recommendations, history
  */
 
+import { validateMeasurements, explainUncertainty, comparisonRows, validHistoryEntry } from './assessment.js';
 import { predict, FEATURE_RANGES, FEATURE_NAMES, FEATURE_UNITS, DATASET_STATS, BASELINE_PROBS } from './model.js';
 import { renderGauge, renderShapChart, renderRadar, renderProbBars, renderConfusionMatrix, renderFeatureImportance, renderTrendChart } from './charts.js';
 
@@ -9,7 +14,17 @@ import { renderGauge, renderShapChart, renderRadar, renderProbBars, renderConfus
 // STATE
 // ─────────────────────────────────────────────────────────────────
 let currentResult = null;
-let history       = JSON.parse(localStorage.getItem('mhr_history') || '[]');
+let guided = null;
+let activeErrors = [];
+let displayedResult = null;
+let displayedSimulation = false;
+let history = [];
+let storageUnavailable = false;
+try {
+  const saved = JSON.parse(localStorage.getItem('mhr_history') || '[]');
+  history = Array.isArray(saved) ? saved.filter(validHistoryEntry).slice(0,20) : [];
+} catch { storageUnavailable = true; }
+let comparisonVisits = [];
 let bsUnit        = 'mmol'; // 'mmol' or 'mgdl'
 let tempUnit      = 'f';    // 'f' or 'c'
 let selectedTrimester = 2;  // 1, 2, or 3
@@ -186,7 +201,9 @@ function buildClinicalSummary(result) {
 // SLIDER ZONE INDICATORS
 // ─────────────────────────────────────────────────────────────────
 function updateSliderZone(slider, i) {
-  const val    = parseFloat(slider.value);
+  let val = parseFloat(slider.value);
+  if (i === 3 && bsUnit === 'mgdl') val /= 18.0182;
+  if (i === 4 && tempUnit === 'c') val = val * 9 / 5 + 32;
   const r      = FEATURE_RANGES[i];
   const status = featureStatus(val, i);
   const track  = slider.closest('.input-group')?.querySelector('.slider-zone');
@@ -200,6 +217,59 @@ function updateSliderZone(slider, i) {
 // FORM INPUTS
 // ─────────────────────────────────────────────────────────────────
 const FIELD_IDS = ['age','sbp','dbp','bs','temp','hr'];
+
+
+function toDisplayValue(value, index) {
+  if (index === 3 && bsUnit === 'mgdl') return value * 18.0182;
+  if (index === 4 && tempUnit === 'c') return (value - 32) * 5 / 9;
+  return value;
+}
+function renderUncertainty(result, simulated = false) {
+  displayedResult = result; displayedSimulation = simulated;
+  const explanation = explainUncertainty(result.probs);
+  const ranked = result.probs.map((p,i)=>({p,i})).sort((a,b)=>b.p-a.p);
+  document.getElementById('risk-label').textContent = (simulated ? t('simulated') : '') + riskName(result.riskClass);
+  document.getElementById('confidence-text').textContent = t('probability',{value:(result.confidence*100).toFixed(1)});
+  document.getElementById('gauge-pct-text').textContent = (result.confidence*100).toFixed(1)+'%';
+  document.getElementById('uncertainty-title').textContent = (simulated ? t('simulated') : '') + t(explanation.close ? 'uncertain' : 'explain');
+  document.getElementById('uncertainty-text').textContent = (explanation.close ? t('close') : '') + t('uncertainty', {
+    first:riskName(ranked[0].i),second:riskName(ranked[1].i),p1:(ranked[0].p*100).toFixed(1),p2:(ranked[1].p*100).toFixed(1),
+  });
+  document.getElementById('uncertainty-card').classList.toggle('uncertain', explanation.close);
+}
+function prepareComparison(result) {
+  const select = document.getElementById('compare-visit');
+  select.replaceChildren();
+  const empty = document.createElement('option');
+  empty.value = ''; empty.textContent = t('chooseVisit'); select.append(empty);
+  comparisonVisits.forEach((visit, index) => {
+    const option = document.createElement('option');
+    option.value = String(index); option.textContent = `${visit.ts} — ${riskName(visit.riskClass)}`;
+    select.append(option);
+  });
+  select.disabled = comparisonVisits.length === 0;
+  const render = () => {
+    const visit = select.value === '' ? null : comparisonVisits[Number(select.value)];
+    document.getElementById('comparison-summary').textContent = visit
+      ? t('compareSummary',{previous:riskName(visit.riskClass), current:riskName(result.riskClass)})
+      : t('compareEmpty');
+    document.getElementById('comparison-rows').replaceChildren();
+    document.getElementById('comparison-table').classList.toggle('hidden', !visit);
+    if (!visit) return;
+    comparisonRows(result.input, visit.input).forEach((row,i) => {
+      const tr = document.createElement('tr');
+      const precision = i === 3 || i === 4 ? 1 : 0;
+      [fieldName(i) + ' (' + FEATURE_UNITS[i] + ')', row.previous.toFixed(precision), row.current.toFixed(precision),
+        (row.change > 0 ? '+' : '') + row.change.toFixed(precision)].forEach(value => {
+        const td = document.createElement('td'); td.textContent = value; tr.append(td);
+      });
+      document.getElementById('comparison-rows').append(tr);
+    });
+  };
+  select.onchange = render;
+  if (comparisonVisits.length) select.value = '0';
+  render();
+}
 
 function getInputValues() {
   const rawValues = FIELD_IDS.map(id => parseFloat(document.getElementById(id).value));
@@ -240,17 +310,28 @@ let gaugeCtx, shapCtx, radarCtx;
 // ─────────────────────────────────────────────────────────────────
 // RUN PREDICTION
 // ─────────────────────────────────────────────────────────────────
+function displayInputErrors(errors, focus = true) {
+  activeErrors = errors;
+  const errorBox = document.getElementById('input-errors');
+  FIELD_IDS.forEach(id => document.getElementById(id).removeAttribute('aria-invalid'));
+  errorBox.replaceChildren();
+  errors.forEach(error => {
+    const item = document.createElement('p'); item.textContent = errorMessage(error); errorBox.append(item);
+    document.getElementById(FIELD_IDS[error.index]).setAttribute('aria-invalid','true');
+  });
+  errorBox.classList.toggle('hidden', !errors.length);
+  if (errors.length && focus) {
+    guided?.showField(errors[0].index);
+    document.getElementById(FIELD_IDS[errors[0].index]).focus();
+  }
+}
 function runPrediction() {
   const input  = getInputValues();
 
-  // Validate
-  for (let i = 0; i < input.length; i++) {
-    const r = FEATURE_RANGES[i];
-    if (isNaN(input[i]) || input[i] < r.min || input[i] > r.max) {
-      showToast(`${FEATURE_NAMES[i]} is out of valid range (${r.min}–${r.max} ${FEATURE_UNITS[i]})`, 'error');
-      return;
-    }
-  }
+  const errors = validateMeasurements(input, FEATURE_RANGES, FEATURE_NAMES);
+  displayInputErrors(errors);
+  if (errors.length) return;
+  comparisonVisits = [...history];
 
   const result = predict(input);
   currentResult = result;
@@ -266,7 +347,9 @@ function runPrediction() {
   };
   history.unshift(entry);
   if (history.length > 20) history.pop();
-  localStorage.setItem('mhr_history', JSON.stringify(history));
+  try { localStorage.setItem('mhr_history', JSON.stringify(history)); }
+  catch { storageUnavailable = true; showToast('This assessment could not be saved. History is available only for this session.', 'warn'); }
+  document.getElementById('storage-notice').classList.toggle('hidden', !storageUnavailable);
 
   showResults(result);
   renderHistoryList();
@@ -286,7 +369,10 @@ function showResults(result) {
   document.getElementById('risk-label').textContent  = result.riskLabel;
   document.getElementById('risk-label').style.color  = result.riskColor;
   document.getElementById('risk-icon').textContent   = ICONS[result.riskClass];
-  document.getElementById('confidence-text').textContent = `${(result.confidence * 100).toFixed(1)}% confidence`;
+  document.getElementById('confidence-text').textContent = `${(result.confidence * 100).toFixed(1)}% model probability`;
+
+  renderUncertainty(result);
+  prepareComparison(result);
 
   // Gauge
   renderGauge(gaugeCtx, result.riskClass, result.probs);
@@ -405,7 +491,7 @@ function shareToWhatsApp() {
     .sort((a, b) => b.v - a.v)[0];
 
   const shareText = `*MaternAI Maternal Health Clinical Summary*%0A` +
-    `Risk Category: *${r.riskLabel.toUpperCase()}* (${(r.confidence * 100).toFixed(0)}% AI Confidence)%0A%0A` +
+    `Risk Category: *${r.riskLabel.toUpperCase()}* (${(r.confidence * 100).toFixed(0)}% model probability)%0A%0A` +
     `*Recorded Vitals:*%0A` +
     `• Blood Pressure: ${input[1]}/${input[2]} mmHg%0A` +
     `• Blood Glucose: ${input[3].toFixed(1)} mmol/L (${(input[3]*18.0182).toFixed(0)} mg/dL)%0A` +
@@ -480,7 +566,9 @@ function initWhatIfSimulator(baseResult) {
     // Update risk badges
     document.getElementById('risk-label').textContent = `${simResult.riskLabel} (Simulated)`;
     document.getElementById('risk-label').style.color = simResult.riskColor;
-    document.getElementById('confidence-text').textContent = `${(simResult.confidence * 100).toFixed(1)}% confidence`;
+    document.getElementById('confidence-text').textContent = `${(simResult.confidence * 100).toFixed(1)}% model probability`;
+
+    renderUncertainty(simResult, true);
 
     // Calculate score delta
     const baseScore = baseResult.probs[1] + 2 * baseResult.probs[2];
@@ -562,7 +650,7 @@ function generateClinicalPDF() {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Confidence: ${(res.confidence * 100).toFixed(1)}% | Low: ${(res.probs[0]*100).toFixed(0)}% · Mid: ${(res.probs[1]*100).toFixed(0)}% · High: ${(res.probs[2]*100).toFixed(0)}%`, 20, 67);
+  doc.text(`Model probability: ${(res.confidence * 100).toFixed(1)}% | Low: ${(res.probs[0]*100).toFixed(0)}% · Mid: ${(res.probs[1]*100).toFixed(0)}% · High: ${(res.probs[2]*100).toFixed(0)}%`, 20, 67);
 
   // Patient Clinical Vitals Table
   doc.setTextColor(15, 23, 42);
@@ -664,6 +752,9 @@ function checkUrlSharedAssessment() {
 // ─────────────────────────────────────────────────────────────────
 // HISTORY
 // ─────────────────────────────────────────────────────────────────
+function escapeText(value) {
+  return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]));
+}
 function renderHistoryList() {
   const container = document.getElementById('history-list');
   if (!container) return;
@@ -682,7 +773,7 @@ function renderHistoryList() {
         <span class="history-badge" style="background:${COLORS[h.riskClass]}20;color:${COLORS[h.riskClass]};border-color:${COLORS[h.riskClass]}40">
           ${BADGES[h.riskClass]} RISK
         </span>
-        <span class="history-time">${h.ts}</span>
+        <span class="history-time">${escapeText(h.ts)}</span>
       </div>
       <div class="history-vitals">
         Age ${h.input[0]}y · SBP ${h.input[1]} · DBP ${h.input[2]} · BS ${h.input[3].toFixed(1)} · ${h.input[4]}°F · HR ${h.input[5]}
@@ -792,18 +883,18 @@ function initTabs() {
 // ─────────────────────────────────────────────────────────────────
 const PRESETS = {
   low:  [25, 100, 70, 6.5,  98.0, 72],
-  mid:  [32, 132, 84, 9.2,  98.8, 80],
+  mid:  [32, 132, 84, 7.0,  98.8, 80],
   high: [42, 152, 94, 13.5, 99.5, 88],
 };
 
 function applyPreset(key) {
-  const vals = PRESETS[key];
+  const vals = PRESETS[key].map((value, i) => toDisplayValue(value, i));
   FIELD_IDS.forEach((id, i) => {
     document.getElementById(id).value        = vals[i];
     document.getElementById(`${id}-slider`).value = vals[i];
     updateSliderZone(document.getElementById(`${id}-slider`), i);
   });
-  showToast(`Loaded ${key}-risk sample data`, 'info');
+  showToast(t('savedSample'), 'info');
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -816,49 +907,46 @@ window.addEventListener('DOMContentLoaded', () => {
   radarCtx = document.getElementById('radar-chart')?.getContext('2d');
   trendCtx = document.getElementById('trend-line-chart')?.getContext('2d');
 
+  FIELD_IDS.forEach((id,i) => {
+    const number = document.getElementById(id);
+    number.setAttribute('aria-label', FEATURE_NAMES[i]);
+    number.setAttribute('aria-describedby', 'measurement-help input-errors');
+    number.setAttribute('inputmode', i === 3 || i === 4 ? 'decimal' : 'numeric');
+    document.getElementById(`${id}-slider`).setAttribute('aria-label', `${FEATURE_NAMES[i]} slider`);
+  });
+  document.getElementById('storage-notice').classList.toggle('hidden', !storageUnavailable);
   initInputSync();
   initTabs();
   renderHistoryList();
   checkUrlSharedAssessment();
 
-  // Unit toggles
+  // Capture canonical values before changing units; repeat clicks are harmless.
   document.querySelectorAll('[data-unit]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const parent = e.target.closest('.unit-toggle-group');
-      parent.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      const unit = e.target.dataset.unit;
-      if (unit === 'mmol' || unit === 'mgdl') {
-        bsUnit = unit;
-        const num = document.getElementById('bs');
-        const slider = document.getElementById('bs-slider');
-        const unitLabel = num.closest('.input-group')?.querySelector('.input-unit');
-        if (unitLabel) unitLabel.textContent = unit === 'mgdl' ? 'mg/dL' : 'mmol/L';
-        if (unit === 'mgdl') {
-          slider.min = '70'; slider.max = '340'; slider.step = '1';
-          slider.value = (parseFloat(slider.value) * 18.0182).toFixed(0);
-          num.value = slider.value;
-        } else {
-          slider.min = '6.0'; slider.max = '19.0'; slider.step = '0.1';
-          slider.value = (parseFloat(slider.value) / 18.0182).toFixed(1);
-          num.value = slider.value;
-        }
-      } else if (unit === 'f' || unit === 'c') {
-        tempUnit = unit;
-        const num = document.getElementById('temp');
-        const slider = document.getElementById('temp-slider');
-        const unitLabel = num.closest('.input-group')?.querySelector('.input-unit');
-        if (unitLabel) unitLabel.textContent = unit === 'c' ? '°C' : '°F';
-        if (unit === 'c') {
-          slider.min = '36.0'; slider.max = '40.0'; slider.step = '0.1';
-          slider.value = ((parseFloat(slider.value) - 32) * 5 / 9).toFixed(1);
-          num.value = slider.value;
-        } else {
-          slider.min = '97.0'; slider.max = '104.0'; slider.step = '0.1';
-          slider.value = ((parseFloat(slider.value) * 9 / 5) + 32).toFixed(1);
-          num.value = slider.value;
-        }
-      }
+    btn.addEventListener('click', () => {
+      const values = getInputValues();
+      const unit = btn.dataset.unit;
+      if (unit === 'mmol' || unit === 'mgdl') bsUnit = unit;
+      else tempUnit = unit;
+      btn.closest('.unit-toggle-group').querySelectorAll('[data-unit]').forEach(b => {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+      [3,4].forEach(i => {
+        const num = document.getElementById(FIELD_IDS[i]);
+        const slider = document.getElementById(`${FIELD_IDS[i]}-slider`);
+        const range = FEATURE_RANGES[i];
+        [num, slider].forEach(el => {
+          el.min = toDisplayValue(range.min, i);
+          el.max = toDisplayValue(range.max, i);
+          el.step = 'any';
+        });
+        slider.step = '0.01';
+        num.value = Number.isFinite(values[i]) ? toDisplayValue(values[i], i) : '';
+        slider.value = num.value;
+        num.closest('.input-group').querySelector('.input-unit').textContent = i === 3
+          ? (bsUnit === 'mgdl' ? 'mg/dL' : 'mmol/L') : (tempUnit === 'c' ? '°C' : '°F');
+        updateSliderZone(slider, i);
+      });
     });
   });
 
@@ -906,6 +994,31 @@ window.addEventListener('DOMContentLoaded', () => {
   // Presets
   document.querySelectorAll('[data-preset]').forEach(btn => {
     btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+  });
+
+  guided = initGuided({
+    validate: () => validateMeasurements(getInputValues(), FEATURE_RANGES, FEATURE_NAMES),
+    onErrors: displayInputErrors,
+    onSubmit: runPrediction,
+  });
+  document.addEventListener('languagechange', () => {
+    if (displayedResult) renderUncertainty(displayedResult, displayedSimulation);
+    if (currentResult) prepareComparison(currentResult);
+    displayInputErrors(activeErrors, false);
+  });
+  initLanguage();
+  initOffline();
+  initEvidence();
+
+  // Keep performance claims and hero counters aligned with exported model metadata.
+  document.querySelectorAll('[data-model-accuracy]').forEach(el => {
+    el.textContent = (DATASET_STATS.accuracy * 100).toFixed(1) + '%';
+  });
+  document.querySelectorAll('[data-model-stat]').forEach(el => {
+    const key = el.dataset.modelStat;
+    el.dataset.counter = key === 'accuracy'
+      ? (DATASET_STATS.accuracy * 100).toFixed(1)
+      : String(DATASET_STATS[key]);
   });
 
   // Animated number counter for stats on hero

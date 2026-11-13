@@ -2,7 +2,6 @@
    MATERNAL HEALTH RISK AI — Design System & Styles
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 /* ── CSS Variables ─────────────────────────────────── */
 :root {
@@ -744,3 +743,82 @@ footer a { color: var(--purple); }
 }
 
 
+
+/* Readable assessment guidance and keyboard-accessible visit comparisons. */
+.access-note { color: var(--text-muted); line-height: 1.7; margin: 12px 0 20px; }
+.access-notice { padding: 16px; margin: 16px 0; border: 2px solid #f59e0b; border-radius: 12px; line-height: 1.6; }
+.access-notice p + p { margin-top: 10px; }
+.access-card { margin-bottom: 24px; line-height: 1.7; }
+.access-card h2 { font-size: 1.15rem; margin-bottom: 12px; }
+.access-card.uncertain { border-left: 4px solid #f59e0b; }
+.visit-select { display: block; width: 100%; min-height: 48px; margin: 10px 0 16px; padding: 12px; background: #111827; color: #f9fafb; border: 1px solid #94a3b8; border-radius: 8px; font: inherit; }
+.comparison-scroll { overflow-x: auto; margin-top: 16px; }
+.comparison-table { width: 100%; border-collapse: collapse; text-align: left; }
+.comparison-table caption { text-align: left; color: var(--text-muted); margin-bottom: 8px; }
+.comparison-table th, .comparison-table td { padding: 12px; border-bottom: 1px solid #64748b; white-space: nowrap; }
+[aria-invalid="true"] { outline: 2px solid #f59e0b; outline-offset: 3px; }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 4px; }
+@media (max-width: 600px) {
+  .access-card { padding: 16px; }
+  button, .unit-btn, .preset-btn { min-height: 44px; }
+  .input-number { min-height: 44px; font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Low-bandwidth core flow: system fonts include local Devanagari fallbacks. */
+:root { font-family: system-ui, -apple-system, "Nirmala UI", "Mangal", sans-serif; }
+.access-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 18px; margin-bottom: 24px; background: #111827; border: 1px solid #64748b; border-radius: 12px; }
+.access-toolbar label { margin-right: 8px; }
+.access-toolbar select { min-height: 44px; font: inherit; background: #1f2937; color: #fff; padding: 8px; border-radius: 8px; }
+.access-scope { width: 100%; font-size: .9rem; line-height: 1.7; color: #cbd5e1; }
+#offline-status { flex: 1; min-width: 180px; color: #e2e8f0; }
+#offline-status[data-ready="true"] { color: #86efac; }
+.guided-help { margin: 20px 0; padding: 20px; border: 1px solid #94a3b8; border-radius: 12px; line-height: 1.8; }
+.guided-help progress { width: 100%; height: 12px; accent-color: #a5b4fc; }
+.guided-buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.guided-hidden { display: none !important; }
+.guided-mode .form-grid { grid-template-columns: 1fr; }
+.guided-mode .predict-btn-wrapper > #predict-btn { display: none; }
+.guided-mode .normal-range { display: none; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+html[lang="hi"] body { font-family: system-ui, "Nirmala UI", "Mangal", sans-serif; line-height: 1.7; }
+@media (max-width: 600px) {
+  .access-toolbar { align-items: stretch; flex-direction: column; }
+  .guided-buttons > button { flex: 1 1 100%; }
+  .hero h1 { font-size: 2rem; overflow-wrap: anywhere; }
+}
+
+.results-actions { flex-wrap: wrap; max-width: 100%; }
+.result-card, .results-grid > *, .two-col-grid > * { min-width: 0; }
+@media (max-width: 640px) {
+  .navbar { height: auto; min-height: 64px; flex-wrap: wrap; gap: 10px; padding: 12px 16px; }
+  .nav-tabs { display: flex; order: 3; width: 100%; flex-wrap: wrap; }
+  .nav-tab { flex: 1 1 40%; padding: 8px; }
+  .results-actions { width: 100%; }
+  .results-actions > button { flex: 1 1 44%; overflow-wrap: anywhere; }
+  .risk-display { max-width: 100%; min-width: 0; }
+  .risk-label-text { font-size: 1.8rem; overflow-wrap: anywhere; }
+}
+.language-control { display: flex; align-items: center; gap: 8px; }
+.language-control label { font-size: .8rem; color: #cbd5e1; }
+.language-control select { padding: 8px; min-height: 44px; font: inherit; background: #111827; color: #fff; border-radius: 8px; }
+
+#form-section, #results-section { scroll-margin-top: 190px; }
+.input-number { scroll-margin-top: 210px; }
+
+@media (max-width: 360px) {
+  .features-grid { grid-template-columns: minmax(0, 1fr); padding: 0 1rem; }
+  .language-control { margin-left: auto; }
+  .hero-badge { white-space: normal; }
+}
+
+.evidence-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(150px,100%),1fr)); gap: 14px; margin: 18px 0; }
+.evidence-metric { display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid #64748b; border-radius: 10px; }
+.evidence-metric strong { font-size: 1.8rem; color: #e2e8f0; }
+.evidence-metric span { color: #cbd5e1; font-size: .9rem; }
+.evidence-findings { padding-left: 22px; list-style: disc; }
+.evidence-findings li { margin-bottom: 12px; }
+#evidence-model-hash { overflow-wrap: anywhere; }
+#evidence-status { padding: 12px; border-left: 3px solid #f59e0b; }

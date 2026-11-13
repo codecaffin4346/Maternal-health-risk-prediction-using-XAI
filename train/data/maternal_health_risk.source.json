@@ -1,0 +1,10 @@
+{
+  "source_url": "https://archive.ics.uci.edu/static/public/863/maternal+health+risk.zip",
+  "dataset_page": "https://archive.ics.uci.edu/dataset/863/maternal+health+risk",
+  "retrieved_at": "2026-11-13T19:31:30.232947+00:00",
+  "archive_sha256": "84f0de0d647bb217ff7224ff265afadf27eb65c5483baaf1cfcc59abadeb75b1",
+  "csv_sha256": "a1f7025719f84715096e0d1f95ae2e56b57809b9b15449e1836c96a7d976ae9b",
+  "archive_member": "Maternal Health Risk Data Set.csv",
+  "citation": "Ahmed, M. (2020). Maternal Health Risk. UCI. DOI:10.24432/C5DP5D",
+  "license": "CC BY 4.0"
+}

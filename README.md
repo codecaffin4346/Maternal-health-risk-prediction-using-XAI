@@ -2,7 +2,7 @@
 
 # 🤰 MaternAI — Maternal Health Risk Prediction using Explainable AI
 
-<img src="https://img.shields.io/badge/Accuracy-93.4%25-22c55e?style=for-the-badge" />
+<img src="https://img.shields.io/badge/Accuracy-76.4%25-22c55e?style=for-the-badge" />
 <img src="https://img.shields.io/badge/Model-Random%20Forest-8b5cf6?style=for-the-badge" />
 <img src="https://img.shields.io/badge/XAI-TreeSHAP-6366f1?style=for-the-badge" />
 <img src="https://img.shields.io/badge/Dataset-UCI%20Maternal%20Health-06b6d4?style=for-the-badge" />
@@ -222,11 +222,13 @@ WITH XAI:      Vitals → "HIGH RISK"
 
 ## 📊 Model Performance
 
+These figures are the stored cross-validation results in `DATASET_STATS` in `js/model.js`, exported on 2026-10-25 for 1,004 processed UCI samples. They have not been independently re-evaluated during local setup. The original dataset contains 1,014 records. After retraining, update these tables from the newly exported metadata; the app reads its performance figures directly from that metadata.
+
 | Metric | Value |
 |---|---|
-| **Overall Accuracy** | 93.4% |
-| **Macro-Averaged F1** | 91.2% |
-| **AUC-ROC** | 96.8% |
+| **Overall Accuracy** | 76.4% |
+| **Macro-Averaged F1** | 76.8% |
+| **AUC-ROC** | 90.8% |
 | **Validation** | 5-fold Stratified K-Fold |
 | **Imbalance Strategy** | SMOTE |
 
@@ -234,20 +236,20 @@ WITH XAI:      Vitals → "HIGH RISK"
 
 | Class | Precision | Recall | F1 Score |
 |---|---|---|---|
-| Low Risk  | 95.1% | 96.3% | 95.7% |
-| Mid Risk  | 89.4% | 87.1% | 88.2% |
-| High Risk | 91.8% | 93.2% | 92.5% |
+| Low Risk  | 76.1% | 80.5% | 78.2% |
+| Mid Risk  | 68.3% | 64.3% | 66.3% |
+| High Risk | 86.5% | 85.5% | 85.9% |
 
 ### Feature Importance (Mean Decrease in Impurity)
 
 | Rank | Feature | Importance |
 |---|---|---|
-| 1 | Systolic Blood Pressure | 35.2% |
-| 2 | Blood Sugar | 29.8% |
-| 3 | Age | 14.8% |
-| 4 | Diastolic Blood Pressure | 12.1% |
-| 5 | Body Temperature | 4.9% |
-| 6 | Heart Rate | 3.2% |
+| 1 | Blood Sugar | 39.9% |
+| 2 | Systolic Blood Pressure | 22.7% |
+| 3 | Diastolic Blood Pressure | 12.4% |
+| 4 | Age | 11.4% |
+| 5 | Heart Rate | 6.8% |
+| 6 | Body Temperature | 6.8% |
 
 ---
 
@@ -388,12 +390,12 @@ Or go to [vercel.com](https://vercel.com) → Import GitHub repo → Deploy.
 | **Structure** | HTML5 (Semantic) | Page layout & accessibility |
 | **Styling** | Vanilla CSS | Glassmorphism, animations, responsive |
 | **Logic** | Vanilla ES6+ JS (Modules) | All UI and ML logic |
-| **Charts** | Chart.js 4.x (CDN) | Gauge, waterfall, radar, heatmap |
+| **Charts** | Chart.js 4.4.0 (bundled locally) | Gauge, waterfall, radar, heatmap |
 | **ML Model** | Custom JS Random Forest | 10-tree ensemble inference |
 | **XAI** | Custom TreeSHAP JS | Path-based SHAP approximation |
 | **Storage** | localStorage | Session history (no DB needed) |
-| **Fonts** | Google Fonts (Inter, DM Sans) | Typography |
-| **Icons** | Lucide Icons | UI icons |
+| **Fonts** | System fonts with local Hindi fallbacks | Offline typography |
+| **Icons** | Unicode and local app icons | Offline UI icons |
 
 ---
 
@@ -431,3 +433,91 @@ Made with ❤️ for maternal healthcare · Powered by Explainable AI
 ⭐ Star this repo if you found it helpful!
 
 </div>
+
+
+## Assessment usability updates
+
+- Field-level validation rejects missing readings, unsupported values, and reversed blood pressure numbers, with an accessible error summary.
+- Unit switching preserves measurements; presets follow the selected units.
+- Results explain model probabilities and flag a gap below 15 percentage points between the leading categories as a display heuristic, not a clinical confidence interval.
+- Compare any of the last 20 saved assessments with the current assessment, including per-measurement differences. Use history for the same person only; it stays in this browser and does not sync.
+- Malformed or unavailable browser storage no longer prevents assessments.
+- Keyboard focus styles, input labels, larger mobile controls, and reduced-motion support improve access.
+
+Run regression checks with `node --test tests/assessment.test.mjs`.
+
+For wider community access, remaining work includes reviewed translations, offline packaging of external chart/PDF dependencies, and clinical and accessibility evaluation. These changes do not establish clinical validation of the prediction model.
+
+
+## English/Hindi guided assessment and offline installation
+
+Choose **English** or **हिंदी** in the top navigation. The choice is saved on this device when browser storage is available. Hindi covers measurement labels and guidance, validation errors, guided controls, risk and uncertainty explanations, and visit comparison. Detailed charts, recommendations, technical pages, history exports, and clinical PDFs remain English. The in-app language note identifies this scope. Hindi wording needs native-speaker and clinical review before public deployment.
+
+Choose **Guide me step by step** to enter one measurement at a time. Untouched demonstration defaults are cleared on first entry to guided mode; explicitly entered readings and selected examples are preserved. **I don’t know this reading** leaves it empty and explains that all six measurements are needed. No missing values are imputed. Switch to **Show full form** at any time. Readings and units are shared between both views.
+
+### Use without internet
+
+1. Open the app once online over HTTPS or on localhost.
+2. Wait for **Ready for offline use on this device**. This confirms the entire required app shell is cached, including the model, charts, PDF library, icons and translations.
+3. Use **Install app** if your browser offers installation, or use its **Add to Home Screen** menu. Installation is optional for offline use.
+4. After readiness, reload or revisit the same address without internet. Predictions, local visit comparison, and English PDF export work offline.
+
+External website links and WhatsApp sending still require internet. Browser settings can remove cached assets and local history; neither is a cloud backup. Private browsing, unsupported browsers or storage restrictions may prevent offline setup or installation. Do not close the first online visit until readiness is confirmed. The app reports preparation failures instead of claiming it is ready.
+
+The service worker caches an explicit list of local app files only. Assessment records are not placed in the service-worker cache; existing history remains in localStorage. The manifest and service worker use relative paths and support subdirectory hosting such as GitHub Pages. To ship an update, increment `RELEASE` in `sw.js` whenever a shell file changes. The next online visit checks for an updated worker; old app caches are removed after a complete new cache installs.
+
+### Development checks
+
+No npm install or build step is needed to run the app: `python -m http.server 8080 --bind 127.0.0.1` is sufficient.
+
+For optional automated development checks:
+
+```sh
+npm ci
+npm test
+npm run test:browser
+```
+
+The browser checks use installed Microsoft Edge on Windows. On other platforms install Playwright Chromium (`npx playwright install chromium`), or set `BROWSER_CHANNEL` to a supported installed channel. Checks cover English/Hindi switching, incomplete guided input, unit conversion, visit comparison, offline reload and assessment, offline PDF generation, nested hosting, blocked localStorage, failed caching, and phone widths down to 320 pixels. Browser screenshots are written to ignored `test-results/`.
+
+The app remains a research prototype. Offline availability and translation do not add clinical validation. Additional languages, native-speaker review, and field usability testing are still needed for broader access.
+
+
+## Reproducible data and exact browser-model evidence
+
+Run these from the repository root:
+
+```sh
+python train/download_uci.py
+python train/audit_model.py
+```
+
+The downloader uses the official UCI archive and records the download URL, retrieval time, archive hash and CSV hash. It never substitutes generated data. The audit requires only Python's standard library and Node.js; training dependencies are not required. Use `--csv` and `--output` for explicit alternative input and report locations.
+
+Results are saved to [reports/model-evidence.md](reports/model-evidence.md) and [reports/model-evidence.json](reports/model-evidence.json), and shown under **Model Stats → Model evidence**. The view verifies the loaded model's SHA256 before displaying its replay metrics. It works offline after the updated app shell is cached; an evidence report for a different model is marked stale.
+
+The official CSV contains 1,014 records in the retrieved file. The audit found **562 duplicate complete rows**, **416 distinct measurement vectors**, and **35 identical-measurement groups with conflicting labels**. A conflict is a review flag: identical readings may belong to different people, and the data do not establish which label is correct. Original UCI webpage metadata and CSV row counts may differ; the report records the measured file count and checksum.
+
+The shipped 10-tree model achieved **73.0% accuracy in a reference-data replay**, with **42 of 272 recorded high-risk rows assigned another class**, including **17 assigned Low Risk**. These are **not held-out performance estimates**: training membership is unknown. The report also includes unique-row and browser-supported subsets, confusion matrices, high-risk errors, age-group summaries and descriptive probability-quality measures. Age groups are not evidence of fairness or population generalizability. No model was retrained or replaced by this audit.
+
+An independent Python traversal of the shipped trees matched the JavaScript engine on **1,014 reference records and 273 boundary probes**, with zero class/probability mismatches at a 1e-12 probability tolerance. This verifies rule execution, not clinical correctness or equivalence to the unavailable original sklearn artifact. Export regression tests separately compare a temporary fitted sklearn model against its complete JavaScript export.
+
+The existing `DATASET_STATS` values remain labelled historical training metadata, separate from replay results. They must not be replaced with replay scores. For any future model change, rerun the audit and increment `RELEASE` in `sw.js` before shipping the updated evidence and model together.
+
+### Training hardening
+
+- Failed or missing official downloads stop training. Explicit missing files never trigger a fallback. The default cache must have matching provenance metadata.
+- Synthetic augmentation and unrelated diabetes-to-risk label mappings are disabled, including legacy CLI switches.
+- Invalid labels, non-finite readings and inherited range exclusions are counted. Units are explicit rather than guessed.
+- Stratified grouped folds keep identical measurement vectors together, including conflicting-label groups. SMOTE remains inside training folds only.
+- Exports retain every evaluated tree and its full depth and numeric thresholds/probabilities. Requests to prune trees or export a subset are rejected; choose the architecture before evaluation.
+
+To exercise these changes with the existing training dependencies:
+
+```sh
+python -m unittest discover -s tests -p test_model_audit.py
+```
+
+The Python suite tests malformed data, duplicate/conflict accounting, metric agreement with sklearn, blocked fallbacks and dataset mixing, grouped fold separation, and lossless model export. The npm browser suite also checks the evidence view online/offline and rejects a deliberately stale model checksum.
+
+Before broader clinical use, the next data requirement is appropriately governed, representative patient/visit-level records with clinician-defined labels or outcomes and a separate external evaluation cohort. Repeating a public-data replay or tuning until its score rises cannot establish clinical readiness.

@@ -1,3 +1,5 @@
+> **Pipeline update:** The data-audit and training-hardening section in README.md describes current behaviour. The older design notes below include historical assumptions. Current training accepts real UCI-schema records only, rejects synthetic/diabetes mixing, groups identical measurements across folds, and exports the complete evaluated forest. Historical CV metadata is separate from the exact-model reference replay in reports/model-evidence.md.
+
 # 🔄 MaternAI — Complete ML & XAI Pipeline Documentation
 
 This document provides a technical deep-dive into every stage of the prediction pipeline — from raw input to explainable output.

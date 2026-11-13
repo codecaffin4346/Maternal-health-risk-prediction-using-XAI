@@ -6,7 +6,7 @@
  * 
  * Trees are derived from known decision boundaries of the dataset.
  * Leaf probabilities reflect real class distributions observed in the dataset.
- * Achieves ~93.4% accuracy equivalent to published benchmarks.
+ * Bundled cross-validation metrics are recorded in DATASET_STATS below.
  */
 
 // ─────────────────────────────────────────────────────────────────

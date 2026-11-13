@@ -10,8 +10,8 @@ Full end-to-end pipeline:
   6. Save all plots to train/output/
 
 Usage:
-  python train_model.py                         # auto-downloads UCI + Pima
-  python train_model.py --no-pima               # UCI + synthetic only
+  python train_model.py                         # official UCI only
+  python train_model.py --skip-shap             # skip optional plots
   python train_model.py --uci path/to/file.csv  # custom UCI path
   python train_model.py --skip-export           # train only, don't patch model.js
 
@@ -39,7 +39,7 @@ import seaborn as sns
 from colorama import Fore, Style, init
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import (
     accuracy_score, f1_score, roc_auc_score,
     confusion_matrix, classification_report,
@@ -88,21 +88,25 @@ def train_with_cv(
 ) -> tuple[RandomForestClassifier, dict]:
     """
     Train RandomForest using stratified K-Fold cross-validation.
-    SMOTE is applied INSIDE each training fold only (prevents data leakage).
+    SMOTE is applied inside each training fold only. Identical measurement vectors
+    are grouped across folds to reduce duplicate leakage; patient IDs are unavailable.
 
     Returns:
         final_model : RF trained on full dataset (for export)
         cv_metrics  : dict of averaged CV metrics
     """
-    _banner("Training — Stratified K-Fold CV + SMOTE")
+    _banner("Training — Stratified Group K-Fold CV + SMOTE")
 
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+    # All identical measurement vectors stay together, including conflicting labels.
+    # This reduces duplicate leakage, but cannot substitute for patient-level splits.
+    _, groups = np.unique(X, axis=0, return_inverse=True)
+    skf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     sm  = SMOTE(k_neighbors=5, random_state=random_state)
 
     fold_acc, fold_f1, fold_auc = [], [], []
     all_y_true, all_y_pred, all_y_prob = [], [], []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(X, y), 1):
+    for fold, (train_idx, val_idx) in enumerate(skf.split(X, y, groups), 1):
         X_tr, X_val = X[train_idx], X[val_idx]
         y_tr, y_val = y[train_idx], y[val_idx]
 
@@ -173,6 +177,8 @@ def train_with_cv(
         "macro_f1":    round(overall_f1, 4),
         "auc_roc":     round(overall_auc, 4),
         "cv_folds":    n_splits,
+        "split_strategy": "stratified_grouped_by_identical_measurements",
+        "unique_measurement_groups": int(len(np.unique(groups))),
         "per_class": {
             "low":  {k: round(rpt["Low Risk"][k], 4)  for k in ("precision","recall","f1-score")},
             "mid":  {k: round(rpt["Mid Risk"][k], 4)  for k in ("precision","recall","f1-score")},
@@ -365,8 +371,8 @@ def main():
     parser.add_argument("--skip-shap",    action="store_true",       help="Skip SHAP computation (faster)")
     parser.add_argument("--n-estimators", type=int,  default=100,   help="RF trees for training (default 100)")
     parser.add_argument("--max-depth",    type=int,  default=8,     help="RF max depth (default 8)")
-    parser.add_argument("--export-depth", type=int,  default=4,     help="Max depth to export to JS (default 4)")
-    parser.add_argument("--export-trees", type=int,  default=10,    help="Number of trees to export to JS (default 10)")
+    parser.add_argument("--export-depth", type=int,  default=None,  help="Deprecated: pruning evaluated trees is disabled")
+    parser.add_argument("--export-trees", type=int,  default=None,  help="Deprecated: exporting a subset of evaluated trees is disabled")
     parser.add_argument("--cv-folds",     type=int,  default=5,     help="K-fold count (default 5)")
     parser.add_argument("--seed",         type=int,  default=42,    help="Random seed")
     args = parser.parse_args()
@@ -377,6 +383,9 @@ def main():
 |   Maternal Health Risk Prediction with Explainable AI    |
 +==========================================================+{Style.RESET_ALL}
 """)
+
+    if args.export_depth is not None or args.export_trees is not None:
+        parser.error('Export pruning and tree selection are disabled: export the complete evaluated forest. Set --max-depth and --n-estimators to control the model before evaluation.')
 
     # ── Step 1: Load & merge datasets ───────────────────────────
     df, meta = load_and_merge(

@@ -6,17 +6,12 @@
   <title>MaternAI — Maternal Health Risk Prediction with Explainable AI</title>
   <meta name="description" content="AI-powered maternal health risk assessment using Explainable AI (XAI). Get instant risk predictions with SHAP-based feature explanations, radar charts, and personalised recommendations."/>
 
-  <!-- Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <!-- jsPDF for Clinical Report Generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/app.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/app-192.png" />
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css" />
@@ -30,7 +25,7 @@
 <div class="orb orb-3"></div>
 
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- ══════════════════════════════════════════════════
      NAVBAR
@@ -42,16 +37,14 @@
   </div>
 
   <div class="nav-tabs">
-    <button class="nav-tab active" data-tab="tab-assess" id="tab-btn-assess">🩺 Assessment</button>
-    <button class="nav-tab" data-tab="tab-history"  id="tab-btn-history">📋 History</button>
+    <button class="nav-tab active" data-tab="tab-assess" id="tab-btn-assess" data-i18n="assess">🩺 Assessment</button>
+    <button class="nav-tab" data-tab="tab-history"  id="tab-btn-history" data-i18n="history">📋 History</button>
     <button class="nav-tab" data-tab="tab-stats"    id="tab-btn-stats">📊 Model Stats</button>
     <button class="nav-tab" data-tab="tab-xai"      id="tab-btn-xai">🔬 How XAI Works</button>
   </div>
 
-  <div style="width:120px; display:flex; justify-content:flex-end;">
-    <span style="font-size:0.75rem;color:var(--text-dim);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#4ade80;padding:4px 10px;border-radius:100px;">
-      ● Live
-    </span>
+  <div class="language-control"><label for="language-select" data-i18n="language">Language / भाषा</label>
+    <select id="language-select"><option value="en">English</option><option value="hi">हिंदी</option></select>
   </div>
 </nav>
 
@@ -61,18 +54,18 @@
 <section class="hero" id="hero">
   <div class="hero-badge">
     <span class="badge-dot"></span>
-    Powered by Explainable AI · UCI Dataset · ~93.4% Accuracy
+    Powered by Explainable AI · UCI Dataset · Recorded CV: <span data-model-accuracy>76.4%</span>
   </div>
 
-  <h1>Maternal Health Risk<br/>Prediction with XAI</h1>
+  <h1 data-i18n="title">Understand your pregnancy health measurements</h1>
 
-  <p class="hero-sub">
+  <p class="hero-sub" data-i18n="intro">
     Enter 6 clinical vitals and receive an instant AI-powered risk assessment — with
     SHAP explanations that tell you <em>exactly why</em> the model made its decision.
   </p>
 
   <div class="hero-cta-group">
-    <button class="btn-primary" onclick="document.getElementById('tab-assess').scrollIntoView({behavior:'smooth'})">
+    <button data-i18n="start" class="btn-primary" onclick="document.getElementById('tab-assess').scrollIntoView({behavior:'smooth'})">
       🩺 Start Assessment
     </button>
     <button class="btn-secondary" onclick="document.querySelector('[data-tab=tab-xai]').click()">
@@ -82,12 +75,12 @@
 
   <div class="hero-stats">
     <div class="stat-item">
-      <div class="stat-number"><span data-counter="1014" data-suffix="">0</span></div>
+      <div class="stat-number"><span data-counter="1004" data-model-stat="n_samples" data-suffix="">0</span></div>
       <div class="stat-label">Training Samples</div>
     </div>
     <div class="stat-item">
-      <div class="stat-number"><span data-counter="93.4" data-suffix="%">0%</span></div>
-      <div class="stat-label">Model Accuracy</div>
+      <div class="stat-number"><span data-counter="76.4" data-model-stat="accuracy" data-suffix="%">0%</span></div>
+      <div class="stat-label">Historical CV Accuracy</div>
     </div>
     <div class="stat-item">
       <div class="stat-number"><span data-counter="6" data-suffix="">0</span></div>
@@ -128,6 +121,12 @@
      MAIN CONTENT — TAB PANELS
 ═══════════════════════════════════════════════════ -->
 <main class="main-content">
+  <section class="access-toolbar" aria-label="Language and offline access">
+    <p id="offline-status" role="status" aria-live="polite">Preparing offline access…</p>
+    <button class="btn-sm" id="install-app" data-i18n="install">Install app</button>
+    <p id="install-help" class="hidden access-note" data-i18n="installHelp"></p>
+    <p class="access-scope" data-i18n="scope"></p>
+  </section>
 
   <!-- ────────────────────────────────────────────────
        TAB: ASSESSMENT
@@ -137,8 +136,8 @@
     <!-- FORM SECTION -->
     <div id="form-section">
       <div class="section-header">
-        <h2>🩺 Risk Assessment</h2>
-        <p>Enter the patient's clinical measurements below. All 6 fields are required.</p>
+        <h2 data-i18n="formTitle">🩺 Your measurements</h2>
+        <p data-i18n="formIntro">All six readings are needed. Do not guess a missing measurement.</p>
       </div>
 
       <!-- Critical Clinical Alert Banner (Hidden by default) -->
@@ -153,22 +152,22 @@
       <!-- Clinical Context & Trimester Tuning Bar -->
       <div class="clinical-context-bar">
         <div class="context-item">
-          <label for="gestational-trimester">🤰 Gestational Trimester:</label>
+          <label data-i18n="trimester" for="gestational-trimester">🤰 Gestational Trimester:</label>
           <select id="gestational-trimester" class="styled-select">
-            <option value="1">Trimester 1 (Weeks 1 - 12)</option>
-            <option value="2" selected>Trimester 2 (Weeks 13 - 26)</option>
-            <option value="3">Trimester 3 (Weeks 27 - 40)</option>
+            <option data-i18n="trimester1" value="1">Trimester 1 (Weeks 1 - 12)</option>
+            <option data-i18n="trimester2" value="2" selected>Trimester 2 (Weeks 13 - 26)</option>
+            <option data-i18n="trimester3" value="3">Trimester 3 (Weeks 27 - 40)</option>
           </select>
         </div>
         <div class="context-item">
-          <label>🩸 Blood Sugar Unit:</label>
+          <label data-i18n="sugarUnit">🩸 Blood Sugar Unit:</label>
           <div class="unit-toggle-group">
             <button type="button" class="unit-btn active" id="unit-mmol" data-unit="mmol">mmol/L</button>
             <button type="button" class="unit-btn" id="unit-mgdl" data-unit="mgdl">mg/dL</button>
           </div>
         </div>
         <div class="context-item">
-          <label>🌡️ Temp Unit:</label>
+          <label data-i18n="tempUnit">🌡️ Temp Unit:</label>
           <div class="unit-toggle-group">
             <button type="button" class="unit-btn active" id="unit-f" data-unit="f">°F</button>
             <button type="button" class="unit-btn" id="unit-c" data-unit="c">°C</button>
@@ -178,19 +177,28 @@
 
       <!-- Sample presets -->
       <div class="preset-bar">
-        <span>Load sample:</span>
-        <button class="preset-btn preset-btn-low"  data-preset="low">🟢 Low Risk Example</button>
-        <button class="preset-btn preset-btn-mid"  data-preset="mid">🟡 Mid Risk Example</button>
-        <button class="preset-btn preset-btn-high" data-preset="high">🔴 High Risk Example</button>
+        <span data-i18n="sampleHeader">Load sample:</span>
+        <button class="preset-btn preset-btn-low"  data-preset="low" data-i18n="lowSample">🟢 Low Risk Example</button>
+        <button class="preset-btn preset-btn-mid"  data-preset="mid" data-i18n="midSample">🟡 Mid Risk Example</button>
+        <button class="preset-btn preset-btn-high" data-preset="high" data-i18n="highSample">🔴 High Risk Example</button>
       </div>
 
+      <p data-i18n="measureHelp" id="measurement-help" class="access-note">Enter measurements from your latest reading. Check the unit beside each field, especially blood sugar and temperature. The app supports a limited measurement range; a value outside it needs review, not adjustment to fit the form.</p>
+      <div id="input-errors" class="access-notice hidden" role="alert"></div>
+      <p data-i18n="storage" id="storage-notice" class="access-notice hidden" role="status">Browser storage is unavailable. You can still assess; history may be lost when you leave this page.</p>
+      <button type="button" id="guided-toggle" class="btn-secondary" data-i18n="guided">Guide me step by step</button>
+      <div id="guided-help" class="guided-help hidden">
+        <p id="guided-progress" role="status"></p>
+        <progress id="guided-progress-bar" value="1" max="6" aria-label="Assessment progress"></progress>
+        <p id="guided-reading-help"></p>
+      </div>
       <div class="form-grid">
 
         <!-- Age -->
         <div class="input-group">
           <div class="input-label">
-            <span>Age</span>
-            <span class="input-unit">years</span>
+            <span data-field-label="0">Age</span>
+            <span class="input-unit" data-i18n="years">years</span>
           </div>
           <div class="input-row">
             <input type="range"  id="age-slider" class="range-slider" min="10" max="49" value="28" step="1" />
@@ -203,7 +211,7 @@
         <!-- Systolic BP -->
         <div class="input-group">
           <div class="input-label">
-            <span>Systolic Blood Pressure</span>
+            <span data-field-label="1">Systolic Blood Pressure</span>
             <span class="input-unit">mmHg</span>
           </div>
           <div class="input-row">
@@ -217,7 +225,7 @@
         <!-- Diastolic BP -->
         <div class="input-group">
           <div class="input-label">
-            <span>Diastolic Blood Pressure</span>
+            <span data-field-label="2">Diastolic Blood Pressure</span>
             <span class="input-unit">mmHg</span>
           </div>
           <div class="input-row">
@@ -231,7 +239,7 @@
         <!-- Blood Sugar -->
         <div class="input-group">
           <div class="input-label">
-            <span>Blood Sugar (BS)</span>
+            <span data-field-label="3">Blood Sugar (BS)</span>
             <span class="input-unit">mmol/L</span>
           </div>
           <div class="input-row">
@@ -245,7 +253,7 @@
         <!-- Body Temperature -->
         <div class="input-group">
           <div class="input-label">
-            <span>Body Temperature</span>
+            <span data-field-label="4">Body Temperature</span>
             <span class="input-unit">°F</span>
           </div>
           <div class="input-row">
@@ -259,7 +267,7 @@
         <!-- Heart Rate -->
         <div class="input-group">
           <div class="input-label">
-            <span>Heart Rate</span>
+            <span data-field-label="5">Heart Rate</span>
             <span class="input-unit">bpm</span>
           </div>
           <div class="input-row">
@@ -271,10 +279,18 @@
         </div>
 
       </div><!-- /form-grid -->
+      <div id="guided-controls" class="hidden">
+        <div class="guided-buttons">
+          <button type="button" class="btn-sm" id="guided-previous" data-i18n="previous">← Previous</button>
+          <button type="button" class="btn-primary" id="guided-next" data-i18n="next">Next →</button>
+          <button type="button" class="btn-sm" id="guided-unknown" data-i18n="unknown">I don’t know this reading</button>
+        </div>
+        <p id="unknown-help" class="access-notice hidden" role="status" data-i18n="unknownHelp"></p>
+      </div>
 
       <div class="predict-btn-wrapper">
-        <button id="predict-btn">🔍 Analyse Risk Now</button>
-        <div class="disclaimer">
+        <button id="predict-btn" data-i18n="predict">🔍 Analyse Risk Now</button>
+        <div class="disclaimer" data-i18n="disclaimer">
           ⚠️ Research prototype only — not a clinical diagnostic tool. Always consult a qualified healthcare professional.
         </div>
       </div>
@@ -288,7 +304,7 @@
           <span class="risk-icon-large" id="risk-icon">🟡</span>
           <div>
             <div class="risk-label-text" id="risk-label">Mid Risk</div>
-            <span class="confidence-pill" id="confidence-text">0% confidence</span>
+            <span class="confidence-pill" id="confidence-text">0% model probability</span>
           </div>
         </div>
         <div class="results-actions">
@@ -296,13 +312,31 @@
           <button class="btn-sm btn-action-whatsapp" id="whatsapp-share-btn">💬 Send to Doctor via WhatsApp</button>
           <button class="btn-sm" id="share-result-btn">🔗 Share Link</button>
           <button class="btn-sm" id="doctor-summary-btn">🩺 Doctor Explainer Mode</button>
-          <button class="btn-sm" id="back-btn">← Edit Inputs</button>
-          <button class="btn-sm" id="new-assessment-btn">+ New Assessment</button>
+          <button class="btn-sm" id="back-btn" data-i18n="back">← Edit Inputs</button>
+          <button class="btn-sm" id="new-assessment-btn" data-i18n="new">+ New Assessment</button>
         </div>
       </div>
 
+      <section id="uncertainty-card" class="result-card access-card" aria-labelledby="uncertainty-title">
+        <h2 id="uncertainty-title">How to read this prediction</h2>
+        <p id="uncertainty-text"></p>
+        <p class="access-note" data-i18n="disclaimer">This is a research prototype. Review the result with your doctor or midwife. If you feel unwell or have concerns, seek care even when the result says Low Risk.</p>
+      </section>
+      <section class="result-card access-card" aria-labelledby="comparison-title">
+        <h2 id="comparison-title" data-i18n="compareTitle">Compare with an earlier visit</h2>
+        <label for="compare-visit" data-i18n="compareLabel">Earlier assessment for the same person</label>
+        <select id="compare-visit" class="visit-select"></select>
+        <p id="comparison-summary" role="status"></p>
+        <div class="comparison-scroll" tabindex="0" role="region" aria-label="Visit measurement comparison">
+          <table id="comparison-table" class="comparison-table hidden">
+            <caption data-i18n="caption">Saved measurements compared with this assessment</caption>
+            <thead><tr><th scope="col" data-i18n="measurement">Measurement</th><th scope="col" data-i18n="earlier">Earlier</th><th scope="col" data-i18n="current">Current</th><th scope="col" data-i18n="change">Change</th></tr></thead>
+            <tbody id="comparison-rows"></tbody>
+          </table>
+        </div>
+      </section>
       <!-- What-If Counterfactual Interactive Simulator -->
-      <div class="result-card what-if-card" style="margin-bottom:24px;">
+      <div lang="en" class="result-card what-if-card" style="margin-bottom:24px;">
         <div class="card-title-flex">
           <div class="card-title" style="margin-bottom:0;border:none;padding:0;">⚡ Live Counterfactual "What-If" Simulator</div>
           <span class="badge-mini">Interactive Recourse</span>
@@ -318,7 +352,7 @@
       </div>
 
       <!-- Gauge + Probability -->
-      <div class="results-grid">
+      <div lang="en" class="results-grid">
 
         <div class="result-card">
           <div class="card-title">Risk Gauge</div>
@@ -397,7 +431,7 @@
   <!-- ────────────────────────────────────────────────
        TAB: HISTORY
   ──────────────────────────────────────────────── -->
-  <div class="tab-panel hidden" id="tab-history">
+  <div class="tab-panel hidden" lang="en" id="tab-history">
     <div class="section-header">
       <h2>📋 Assessment History & Longitudinal Trends</h2>
       <p>Assessments stored in your browser session with multi-visit health trajectories.</p>
@@ -424,11 +458,28 @@
   <!-- ────────────────────────────────────────────────
        TAB: MODEL STATS
   ──────────────────────────────────────────────── -->
-  <div class="tab-panel hidden" id="tab-stats">
+  <div class="tab-panel hidden" lang="en" id="tab-stats">
     <div class="section-header">
       <h2>📊 Model Performance</h2>
       <p>Random Forest (10 trees) trained on UCI Maternal Health Risk Dataset · 5-fold stratified cross-validation · SMOTE oversampling</p>
     </div>
+
+    <section class="result-card access-card" id="model-evidence" aria-labelledby="evidence-title">
+      <h2 id="evidence-title">Model evidence: reference-data audit</h2>
+      <p id="evidence-status" role="status">Loading the audit and checking the model version…</p>
+      <div id="evidence-metrics" class="evidence-grid"></div>
+      <ul id="evidence-findings" class="evidence-findings"></ul>
+      <div class="comparison-scroll" role="region" aria-label="Reference replay confusion matrix" tabindex="0">
+        <table class="comparison-table">
+          <caption>Reference replay: recorded labels versus predictions</caption>
+          <thead><tr><th scope="col">Recorded label</th><th scope="col">Predicted Low</th><th scope="col">Predicted Mid</th><th scope="col">Predicted High</th></tr></thead>
+          <tbody id="evidence-confusion"></tbody>
+        </table>
+      </div>
+      <p class="access-note">Generated: <span id="evidence-date">—</span><br/>Model SHA256: <code id="evidence-model-hash">—</code></p>
+      <p><a href="reports/model-evidence.md" download>Download audit summary</a> · <a href="reports/model-evidence.json" download>Download full evidence JSON</a></p>
+    </section>
+    <p class="access-note"><strong>Historical training metadata below.</strong> These stored cross-validation scores describe earlier training runs; they are distinct from the exact browser-model replay above. Training membership and the original fitted model are unavailable.</p>
 
     <!-- Big stat cards -->
     <div class="stats-hero-grid">
@@ -495,7 +546,7 @@
   <!-- ────────────────────────────────────────────────
        TAB: HOW XAI WORKS
   ──────────────────────────────────────────────── -->
-  <div class="tab-panel hidden" id="tab-xai">
+  <div class="tab-panel hidden" lang="en" id="tab-xai">
     <div class="section-header">
       <h2>🔬 How Explainable AI Works</h2>
       <p>Understanding the science behind the predictions — from Random Forest to SHAP values.</p>
@@ -559,7 +610,7 @@
           <li>Robust to outliers and noisy data</li>
           <li>Naturally provides feature importance scores</li>
           <li>No need for feature scaling or normalisation</li>
-          <li>Achieves 93–95% accuracy on the maternal health dataset</li>
+          <li>Reports <span data-model-accuracy>76.4%</span> accuracy in the bundled model’s cross-validation metadata</li>
         </ul>
       </div>
 
@@ -653,24 +704,7 @@
 ═══════════════════════════════════════════════════ -->
 <script type="module" src="js/app.js"></script>
 
-<script>
-  // Tab switching fix — also update gauge pct text after render
-  document.addEventListener('DOMContentLoaded', () => {
-    lucide.createIcons();
-  });
 
-  // Update gauge overlay text after prediction
-  document.addEventListener('click', e => {
-    if (e.target.id === 'predict-btn') {
-      setTimeout(() => {
-        const risk = document.getElementById('risk-label').textContent;
-        const conf = document.getElementById('confidence-text').textContent;
-        const pctEl = document.getElementById('gauge-pct-text');
-        if (pctEl) pctEl.textContent = conf.replace(' confidence','');
-      }, 200);
-    }
-  });
-</script>
 
 </body>
 </html>

@@ -42,7 +42,7 @@ def _node_expected_value(tree_, node_id: int) -> float:
     return float(probs[1] + 2.0 * probs[2])
 
 
-def _export_node(tree_, node_id: int, max_depth: int, depth: int = 0) -> dict:
+def _export_node(tree_, node_id: int, max_depth: int | None, depth: int = 0) -> dict:
     """
     Recursively convert an sklearn tree node to our JS schema:
       Internal: { f, t, v, L, R }
@@ -50,7 +50,7 @@ def _export_node(tree_, node_id: int, max_depth: int, depth: int = 0) -> dict:
     """
     is_leaf = (
         tree_.feature[node_id] == -2   # sklearn marks leaves with -2
-        or depth >= max_depth
+        or (max_depth is not None and depth >= max_depth)
     )
 
     counts = tree_.value[node_id][0]
@@ -59,7 +59,7 @@ def _export_node(tree_, node_id: int, max_depth: int, depth: int = 0) -> dict:
     # Ensure exactly 3 classes (in case some splits create single-class leaves)
     while len(probs) < 3:
         probs.append(0.0)
-    probs  = [round(p, 4) for p in probs[:3]]
+    probs  = [float(p) for p in probs[:3]]
     v_node = round(probs[1] + 2.0 * probs[2], 4)
 
     if is_leaf:
@@ -68,7 +68,7 @@ def _export_node(tree_, node_id: int, max_depth: int, depth: int = 0) -> dict:
     left_id  = int(tree_.children_left[node_id])
     right_id = int(tree_.children_right[node_id])
     feat_idx = int(tree_.feature[node_id])
-    threshold = round(float(tree_.threshold[node_id]), 4)
+    threshold = float(tree_.threshold[node_id])
 
     return {
         "f": feat_idx,
@@ -79,7 +79,7 @@ def _export_node(tree_, node_id: int, max_depth: int, depth: int = 0) -> dict:
     }
 
 
-def rf_to_js_trees(rf: RandomForestClassifier, max_depth: int = 4) -> list[dict]:
+def rf_to_js_trees(rf: RandomForestClassifier, max_depth: int | None = None) -> list[dict]:
     """
     Export all trees from a trained RandomForestClassifier.
     Returns a list of tree dicts in the MaternAI JS format.
@@ -156,6 +156,8 @@ def build_stats_block(metrics: dict, meta: dict) -> str:
   macro_f1:   {fmt(metrics.get('macro_f1', 0))},
   auc_roc:    {fmt(metrics.get('auc_roc', 0))},
   cv_folds:   {metrics.get('cv_folds', 5)},
+  split_strategy: {json.dumps(metrics.get('split_strategy', 'unspecified'))},
+  tree_count: {meta.get('tree_count', 0)},
   n_samples:  {meta.get('n_samples', 0)},
   n_features: {meta.get('n_features', 6)},
   n_classes:  3,
@@ -178,8 +180,8 @@ def patch_model_js(
     rf: RandomForestClassifier,
     metrics: dict,
     meta: dict,
-    max_depth: int = 4,
-    n_trees: int = 10,
+    max_depth: int | None = None,
+    n_trees: int | None = None,
 ) -> None:
     """
     Rewrite the TREES array and DATASET_STATS block inside model.js.
@@ -188,31 +190,23 @@ def patch_model_js(
     if not MODEL_JS.exists():
         raise FileNotFoundError(f"model.js not found at {MODEL_JS}")
 
-    # ── Backup ──────────────────────────────────────────────────
+    # Reject transformations that would make displayed CV metrics describe a
+    # different architecture. Export the entire evaluated forest at full depth.
+    if max_depth is not None and max_depth < max(est.get_depth() for est in rf.estimators_):
+        raise ValueError('Export pruning is disabled; evaluate the desired depth before exporting')
+    if n_trees is not None and n_trees != len(rf.estimators_):
+        raise ValueError('Tree selection is disabled; evaluate the desired tree count before exporting')
+    if list(rf.classes_) != [0,1,2]:
+        raise ValueError('Expected Low/Mid/High class mapping [0,1,2]')
+    js_trees = rf_to_js_trees(rf, max_depth=None)
+
     BACKUP_DIR.mkdir(exist_ok=True)
-    ts      = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup  = BACKUP_DIR / f"model_{ts}.js.bak"
-    backup.write_text(MODEL_JS.read_text(encoding="utf-8"), encoding="utf-8")
-    print(f"  ✓ Backed up model.js → {backup.name}")
-
-    # ── Export trees ─────────────────────────────────────────────
-    # Select n_trees most diverse estimators (by OOB score if available,
-    # else evenly spaced through the ensemble)
-    all_trees = rf.estimators_
-    if len(all_trees) > n_trees:
-        step     = len(all_trees) // n_trees
-        selected = [all_trees[i * step] for i in range(n_trees)]
-    else:
-        selected = all_trees
-
-    # Temporarily swap rf.estimators_ so rf_to_js_trees works
-    orig = rf.estimators_
-    rf.estimators_ = selected
-    js_trees = rf_to_js_trees(rf, max_depth=max_depth)
-    rf.estimators_ = orig
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    backup = BACKUP_DIR / f'model_{ts}.js.bak'
+    backup.write_text(MODEL_JS.read_text(encoding='utf-8'), encoding='utf-8')
 
     trees_str = trees_to_js_array(js_trees)
-    stats_str = build_stats_block(metrics, meta)
+    stats_str = build_stats_block(metrics, {**meta, 'tree_count':len(js_trees)})
 
     # ── Read & patch ─────────────────────────────────────────────
     original = MODEL_JS.read_text(encoding="utf-8")
