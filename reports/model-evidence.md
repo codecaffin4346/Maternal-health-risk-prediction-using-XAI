@@ -2,9 +2,9 @@
 
 **Reference-data replay only. These are not holdout results or evidence of clinical readiness.**
 
-Generated: 2026-11-13T19:31:30.819819+00:00
+Generated: 2026-11-13T20:52:07.936474+00:00
 Dataset SHA256: `a1f7025719f84715096e0d1f95ae2e56b57809b9b15449e1836c96a7d976ae9b`
-Model SHA256: `6d988ea3f78ed5348dddf2de225f3e19806fddef9b345867ab98ae608f785a8f`
+Model SHA256: `29eb0ed5e5c5148c422ab801a70106a55446d2cd651d746dcafbeb235658896d`
 
 ## Data quality
 

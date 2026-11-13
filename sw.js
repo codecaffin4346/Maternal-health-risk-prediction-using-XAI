@@ -1,5 +1,5 @@
 // Increment RELEASE whenever a shipped shell asset changes.
-const RELEASE = 'v2';
+const RELEASE = 'v3';
 const PREFIX = 'maternai-' + new URL(self.registration.scope).pathname + '-';
 const CACHE = PREFIX + RELEASE;
 const FILES = [

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-13T19:31:30.819819+00:00",
+  "generated_at": "2026-11-13T20:52:07.936474+00:00",
   "status": "research_only_not_clinically_validated",
   "evaluation_type": "reference_replay_not_holdout",
   "limitations": [
@@ -82,7 +82,7 @@
   },
   "model": {
     "file": "js/model.js",
-    "sha256": "6d988ea3f78ed5348dddf2de225f3e19806fddef9b345867ab98ae608f785a8f",
+    "sha256": "29eb0ed5e5c5148c422ab801a70106a55446d2cd651d746dcafbeb235658896d",
     "tree_count": 10,
     "historical_training_metadata": {
       "accuracy": 0.7639,
